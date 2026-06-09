@@ -37,11 +37,12 @@ const roleLabel: Record<string, string> = {
 };
 
 export default function Anggota() {
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const [members, setMembers] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [role, setRole] = useState("anak_1");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -59,11 +60,17 @@ export default function Anggota() {
 
   const addMember = async () => {
     if (!name.trim()) return;
+    if (!session?.user?.id) {
+      toast.error("Silakan login terlebih dahulu");
+      return;
+    }
+    setSaving(true);
     const { error } = await supabase.from("family_members").insert({
-      user_id: session!.user!.id,
+      user_id: session.user.id,
       name: name.trim(),
       role,
     });
+    setSaving(false);
     if (error) {
       toast.error("Gagal: " + error.message);
     } else {
@@ -153,8 +160,9 @@ export default function Anggota() {
               <Button
                 className="w-full bg-emerald-600 hover:bg-emerald-700"
                 onClick={addMember}
+                disabled={saving || isPending}
               >
-                Simpan
+                {saving ? "Menyimpan..." : "Simpan"}
               </Button>
             </div>
           </DialogContent>
