@@ -74,16 +74,24 @@ CREATE POLICY "Users can view own family"
 
 -- 7. RLS POLICIES — family_members
 -- ============================================================
--- Lihat anggota di family yang sama
+-- Security definer function: cek user adalah member family (bypass RLS di subquery)
+CREATE OR REPLACE FUNCTION public.is_family_member(p_family_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.family_members
+    WHERE family_id = p_family_id AND user_id = auth.uid()
+  );
+END;
+$$;
+
+-- Lihat anggota di family yang sama (pakai function, hindari infinite recursion)
 CREATE POLICY "Users can view members in same family"
   ON public.family_members FOR SELECT
   TO authenticated
-  USING (
-    family_id IN (
-      SELECT fm2.family_id FROM public.family_members fm2
-      WHERE fm2.user_id = auth.uid()
-    )
-  );
+  USING (public.is_family_member(family_id));
 
 -- Gabung family (insert) — pake invite_code
 CREATE POLICY "Users can join family with invite code"
