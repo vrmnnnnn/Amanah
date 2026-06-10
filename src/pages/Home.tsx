@@ -1,55 +1,44 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
-import { authClient } from "@/lib/auth-client";
+import { useFamily } from "@/lib/family-context";
 import { ArrowDownToLine, ArrowUpFromLine, Users, AlertTriangle } from "lucide-react";
 
 const BUDGET_KEY = "amanah-budget";
 const CHART_COLORS = ["#0d9488", "#ef4444", "#f59e0b", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 
-interface FamilyMember {
-  id: string;
-  name: string;
-  role: string;
-}
-
 export default function Home() {
-  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const { family, me, members } = useFamily();
   const [totalMasuk, setTotalMasuk] = useState(0);
   const [totalKeluar, setTotalKeluar] = useState(0);
   const [budget, setBudget] = useState<number | null>(null);
   const [catByMonth, setCatByMonth] = useState<{ name: string; amount: number; color: string }[]>([]);
-  const { data: session } = authClient.useSession();
 
   useEffect(() => {
-    if (!session?.user) return;
-    loadData();
+    if (!family) return;
+    loadTransactions();
     const stored = localStorage.getItem(BUDGET_KEY);
     if (stored) setBudget(Number(stored));
-  }, [session]);
+  }, [family]);
 
-  const loadData = async () => {
-    const { data: m } = await supabase
-      .from("family_members")
-      .select("*")
-      .eq("user_id", session?.user?.id);
+  const loadTransactions = async () => {
+    if (!family) return;
 
     const { data: t } = await supabase
       .from("transactions")
       .select("*")
-      .eq("user_id", session?.user?.id);
+      .eq("family_id", family.id);
 
     if (t) {
-      // Totals
       setTotalMasuk(
-        t.filter((tx: any) => tx.type === "masuk").reduce((a: number, tx: any) => a + tx.amount, 0)
+        t.filter((tx: any) => tx.type === "masuk").reduce((a: number, tx: any) => a + Number(tx.amount), 0)
       );
       const keluarTotal = t
         .filter((tx: any) => tx.type === "keluar")
-        .reduce((a: number, tx: any) => a + tx.amount, 0);
+        .reduce((a: number, tx: any) => a + Number(tx.amount), 0);
       setTotalKeluar(keluarTotal);
 
-      // Current month spending by category
+      // Current month breakdown
       const now = new Date();
       const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       const catMap: Record<string, number> = {};
@@ -59,8 +48,9 @@ export default function Home() {
         const txMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         return txMonth === thisMonth;
       }).forEach((tx: any) => {
-        catMap[tx.category] = (catMap[tx.category] || 0) + tx.amount;
+        catMap[tx.category] = (catMap[tx.category] || 0) + Number(tx.amount);
       });
+
       const labels: Record<string, string> = {
         makan: "Makan", transport: "Transport", belanja: "Belanja",
         tagihan: "Tagihan", gaji: "Gaji", lainnya: "Lainnya",
@@ -74,15 +64,13 @@ export default function Home() {
         }));
       setCatByMonth(entries);
     }
-
-    if (m) setMembers(m);
   };
 
   const saldo = totalMasuk - totalKeluar;
   const budgetPercent = budget && budget > 0 ? Math.min((totalKeluar / budget) * 100, 100) : 0;
   const budgetWarning = budget && totalKeluar > budget;
 
-  // Simple SVG donut chart
+  // Donut chart data
   const totalChart = catByMonth.reduce((s, c) => s + c.amount, 0);
   let cumulative = 0;
   const slices = catByMonth.map((c) => {
@@ -92,12 +80,18 @@ export default function Home() {
     return { ...c, start, end };
   });
 
+  // Get member name by user_id
+  const memberName = (user_id: string) => {
+    const m = members.find((m) => m.user_id === user_id);
+    return m?.role || "Anggota";
+  };
+
   return (
     <div className="min-h-dvh pb-24" style={{ background: "var(--bg)" }}>
       {/* Header */}
       <div className="bg-[var(--navy)] text-[#faf9f7] px-5 pt-14 pb-10 rounded-b-[2rem]">
         <h1 className="text-center text-lg font-semibold tracking-tight opacity-80">
-          Amanah
+          {family?.name || "Amanah"}
         </h1>
         <div className="mt-6 text-center">
           <p className="text-[13px] font-medium uppercase tracking-wider" style={{ color: "var(--navy-light)" }}>
@@ -131,12 +125,12 @@ export default function Home() {
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 animate-fade-in">
             <AlertTriangle size={16} className="text-red-500 shrink-0" />
             <p className="text-[13px] font-medium text-red-600 dark:text-red-400">
-              Pengeluaran sudah melebihi budget! Rp {totalKeluar.toLocaleString("id-ID")} dari Rp {budget!.toLocaleString("id-ID")}
+              Pengeluaran melebihi budget! Rp {totalKeluar.toLocaleString("id-ID")} / Rp {budget!.toLocaleString("id-ID")}
             </p>
           </div>
         )}
 
-        {/* Budget progress bar */}
+        {/* Budget bar */}
         {budget && budget > 0 && !budgetWarning && (
           <div className="card-layered p-4 animate-fade-in">
             <div className="flex justify-between items-center mb-2">
@@ -159,14 +153,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* Chart — spending breakdown */}
+        {/* Chart — donut */}
         {catByMonth.length > 0 && totalChart > 0 && (
           <div className="card-layered p-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
               Pengeluaran Bulan Ini
             </h2>
             <div className="flex items-center gap-4">
-              {/* Donut chart */}
               <svg viewBox="0 0 100 100" className="size-24 shrink-0 -rotate-90">
                 {slices.map((s, i) => {
                   const startAngle = (s.start / totalChart) * 360;
@@ -190,7 +183,6 @@ export default function Home() {
                 <circle cx="50" cy="50" r="24" fill="var(--surface)" />
               </svg>
 
-              {/* Legend */}
               <div className="flex-1 min-w-0 space-y-1.5">
                 {catByMonth.slice(0, 5).map((c, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
@@ -203,11 +195,6 @@ export default function Home() {
                     </span>
                   </div>
                 ))}
-                {catByMonth.length > 5 && (
-                  <p className="text-[10px]" style={{ color: "var(--text-faded)" }}>
-                    +{catByMonth.length - 5} lainnya
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -218,27 +205,31 @@ export default function Home() {
           <div className="flex items-center gap-2 mb-3">
             <Users size={16} style={{ color: "var(--text-muted)" }} />
             <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-              Anggota Keluarga
+              Anggota ({members.length})
             </h2>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             {members.map((m) => (
               <div key={m.id} className="card-layered p-3.5 flex items-center gap-3">
-                <div className="size-11 rounded-full flex items-center justify-center text-base font-bold" style={{ background: "var(--surface-hover)", color: "var(--text)", opacity: 0.6 }}>
-                  {m.name?.[0]?.toUpperCase() || "?"}
+                <div
+                  className="size-11 rounded-full flex items-center justify-center text-base font-bold"
+                  style={{ background: "var(--surface-hover)", color: "var(--text)" }}
+                >
+                  {m.role?.[0]?.toUpperCase() || "?"}
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-sm truncate" style={{ color: "var(--text)" }}>
-                    {m.name}
+                    {m.role}
                   </p>
-                  <Badge
-                    variant="secondary"
-                    className="text-[10px] capitalize h-5 px-1.5 mt-0.5 border-0"
-                    style={{ background: "var(--surface-hover)", color: "var(--text-muted)" }}
-                  >
-                    {m.role.replace("_", " ")}
-                  </Badge>
+                  {m.user_id === me?.user_id && (
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] h-5 px-1.5 mt-0.5 border-0 bg-[var(--navy)]/10 text-[var(--navy)]"
+                    >
+                      Kamu
+                    </Badge>
+                  )}
                 </div>
               </div>
             ))}
@@ -247,10 +238,10 @@ export default function Home() {
           {members.length === 0 && (
             <div className="card-layered text-center py-10 px-4">
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Belum ada anggota keluarga.
+                Belum ada anggota.
               </p>
               <p className="text-xs mt-1" style={{ color: "var(--text-faded)" }}>
-                Tambahkan di tab Anggota.
+                Bagikan kode invite ke keluarga.
               </p>
             </div>
           )}

@@ -137,7 +137,7 @@ export default function Login() {
 
       {/* Footer */}
       <p className="text-[11px] mt-auto pb-8 pt-12" style={{ color: "var(--text-faded)" }}>
-        Amanah &middot; v2
+        Amanah &middot; v3
       </p>
     </div>
   );

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { authClient } from "@/lib/auth-client";
+import { useFamily } from "@/lib/family-context";
 import { toast } from "sonner";
 import {
   ArrowDownToLine,
@@ -30,46 +31,25 @@ declare global {
 
 export default function Catat() {
   const { data: session } = authClient.useSession();
+  const { family, me, members } = useFamily();
   const [type, setType] = useState<"masuk" | "keluar">("keluar");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
   const [memberId, setMemberId] = useState("");
-  const [members, setMembers] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
+  // Set default member to self
   useEffect(() => {
-    if (!session?.user) return;
-    supabase
-      .from("family_members")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .then(({ data }) => {
-        if (data) setMembers(data);
-      });
-  }, [session]);
+    if (me && !memberId) setMemberId(me.id);
+  }, [me]);
 
-  const startListening = async () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Browser tidak mendukung voice input");
-      return;
-    }
-
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err: any) {
-      if (err.name === "NotAllowedError") {
-        toast.error("Izin mikrofon ditolak. Buka pengaturan browser.");
-      } else if (err.name === "NotFoundError") {
-        toast.error("Mikrofon tidak ditemukan di perangkat ini");
-      } else {
-        toast.error("Gagal akses mikrofon: " + (err.message || "unknown"));
-      }
-      return;
-    }
+  // Voice input
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
     recognition.lang = "id-ID";
@@ -77,217 +57,257 @@ export default function Catat() {
     recognition.continuous = false;
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setNote((prev) => (prev ? prev + " " + transcript : transcript));
-      toast.success("Teks direkam!");
+      const transcript = event.results[0][0].transcript.toLowerCase();
+      parseVoiceInput(transcript);
     };
 
-    recognition.onerror = (event: any) => {
-      console.error("Speech error:", event.error);
-      if (event.error === "not-allowed") {
-        toast.error("Izin mikrofon ditolak.");
-      } else if (event.error === "no-speech") {
-        toast.error("Tidak ada suara terdeteksi.");
-      } else {
-        toast.error("Gagal merekam: " + (event.error || "unknown"));
-      }
+    recognition.onerror = () => {
       setListening(false);
+      toast.error("Gagal mendengarkan. Coba lagi.");
     };
 
     recognition.onend = () => setListening(false);
     recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
+  }, []);
+
+  const parseVoiceInput = (text: string) => {
+    // Patterns: "keluar 50000 makan", "masuk 100000 gaji"
+    const isMasuk = text.includes("masuk");
+    const isKeluar = text.includes("keluar");
+
+    if (isMasuk) setType("masuk");
+    if (isKeluar) setType("keluar");
+
+    // Extract amount
+    const amountMatch = text.match(/(\d[\d.]*)\s*(ribu|rb|rbu|jt|juta)?/);
+    if (amountMatch) {
+      let amt = parseInt(amountMatch[1].replace(/\./g, ""));
+      if (amountMatch[2]) {
+        const unit = amountMatch[2];
+        if (unit === "ribu" || unit === "rb" || unit === "rbu") amt *= 1000;
+        if (unit === "jt" || unit === "juta") amt *= 1_000_000;
+      }
+      setAmount(String(amt));
+    }
+
+    // Extract category
+    const cats = ["makan", "transport", "belanja", "tagihan", "gaji", "lainnya"];
+    for (const c of cats) {
+      if (text.includes(c)) {
+        // Handle "belanja" before "beli" etc.
+        if (c === "belanja" && text.includes("belanja")) { setCategory(c); break; }
+        if (c !== "belanja" && text.includes(c)) { setCategory(c); break; }
+      }
+    }
+
+    // Extract note — everything after amount
+    const afterAmount = text.replace(amountMatch?.[0] || "", "").replace(/\b(masuk|keluar)\b/g, "").trim();
+    if (afterAmount && !cats.includes(afterAmount)) {
+      setNote(afterAmount.charAt(0).toUpperCase() + afterAmount.slice(1));
+    }
   };
 
-  const stopListening = () => {
-    recognitionRef.current?.stop();
-    setListening(false);
+  const toggleMic = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
+    } else {
+      setListening(true);
+      recognitionRef.current?.start();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !session?.user) return;
+    if (!session?.user || !family || !me) return;
+    if (!amount || !category || !memberId) {
+      toast.error("Lengkapi jumlah, kategori, dan anggota");
+      return;
+    }
 
-    const { error } = await supabase.from("transactions").insert({
-      user_id: session.user.id,
-      member_id: memberId || undefined,
-      type,
-      amount: parseFloat(amount),
-      category: category || "lainnya",
-      note,
-    });
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("transactions").insert({
+        family_id: family.id,
+        user_id: session.user.id,
+        member_id: memberId,
+        type,
+        amount: Number(amount.replace(/\./g, "")),
+        category,
+        note: note || null,
+      });
 
-    if (error) {
-      toast.error("Gagal menyimpan: " + error.message);
-    } else {
+      if (error) throw error;
+
       toast.success("Transaksi tersimpan!");
+      // Reset form
       setAmount("");
       setCategory("");
       setNote("");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal menyimpan");
+    } finally {
+      setSaving(false);
     }
   };
 
+  const catsByType =
+    type === "masuk"
+      ? [
+          { value: "gaji", label: "Gaji" },
+          { value: "bisnis", label: "Bisnis" },
+          { value: "investasi", label: "Investasi" },
+          { value: "lainnya", label: "Lainnya" },
+        ]
+      : [
+          { value: "makan", label: "Makan" },
+          { value: "transport", label: "Transport" },
+          { value: "belanja", label: "Belanja" },
+          { value: "tagihan", label: "Tagihan" },
+          { value: "lainnya", label: "Lainnya" },
+        ];
+
   return (
     <div className="min-h-dvh pb-24" style={{ background: "var(--bg)" }}>
-      <div className="px-5 pt-10">
-        {/* Header */}
-        <h1 className="text-2xl font-bold text-center tracking-heading" style={{ color: "var(--text)" }}>
+      {/* Header */}
+      <div className="bg-[var(--navy)] text-[#faf9f7] px-5 pt-14 pb-10 rounded-b-[2rem]">
+        <h1 className="text-center text-lg font-semibold tracking-tight opacity-80">
           Catat Transaksi
         </h1>
-        <p className="text-[13px] text-center mt-1" style={{ color: "var(--text-muted)" }}>
-          {type === "keluar" ? "Pengeluaran" : "Pemasukan"}
-        </p>
+      </div>
 
-        {/* Form card */}
-        <div className="card-layered mt-5 p-5">
-          {/* Type toggle */}
-          <div className="flex rounded-xl p-1 gap-1 mb-5" style={{ background: "var(--surface-hover)" }}>
+      <div className="px-4 -mt-3">
+        {/* Type toggle */}
+        <div className="flex justify-center mb-5">
+          <div className="flex rounded-2xl p-1 gap-0.5 shadow-sm" style={{ background: "var(--surface-hover)" }}>
             <button
-              type="button"
-              onClick={() => setType("keluar")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-200 ${
-                type === "keluar"
-                  ? "bg-white text-red-500 shadow-sm dark:bg-[var(--surface)]"
-                  : ""
+              onClick={() => { setType("keluar"); setCategory(""); }}
+              className={`flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
+                type === "keluar" ? "bg-white dark:bg-[var(--surface)] shadow-sm text-red-500" : ""
               }`}
-              style={type !== "keluar" ? { color: "var(--text-muted)" } : {}}
+              style={{ color: type === "keluar" ? "#ef4444" : "var(--text-muted)" }}
             >
-              <ArrowUpFromLine size={16} />
+              <ArrowUpFromLine size={15} />
               Keluar
             </button>
             <button
-              type="button"
-              onClick={() => setType("masuk")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-200 ${
-                type === "masuk"
-                  ? "bg-white text-[var(--green)] shadow-sm dark:bg-[var(--surface)]"
-                  : ""
+              onClick={() => { setType("masuk"); setCategory(""); }}
+              className={`flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
+                type === "masuk" ? "bg-white dark:bg-[var(--surface)] shadow-sm text-[var(--green)]" : ""
               }`}
-              style={type !== "masuk" ? { color: "var(--text-muted)" } : {}}
+              style={{ color: type === "masuk" ? "var(--green)" : "var(--text-muted)" }}
             >
-              <ArrowDownToLine size={16} />
+              <ArrowDownToLine size={15} />
               Masuk
             </button>
           </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Amount */}
-            <div className="space-y-1.5">
-              <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
-                Jumlah
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold" style={{ color: "var(--text-muted)" }}>
-                  Rp
-                </span>
-                <Input
-                  type="number"
-                  placeholder="50.000"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                  className="h-12 pl-10 rounded-xl text-lg font-semibold focus:border-[var(--gold)] focus:ring-[var(--gold)]/20"
-                  style={{ borderColor: "var(--border)", background: "var(--bg)" }}
-                />
-              </div>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Amount */}
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+              Jumlah (Rp)
+            </Label>
+            <Input
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={amount}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^0-9]/g, "");
+                setAmount(raw ? Number(raw).toLocaleString("id-ID") : "");
+              }}
+              required
+              className="h-12 rounded-xl text-lg font-bold"
+              style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+            />
+          </div>
 
-            {/* Category */}
-            <div className="space-y-1.5">
-              <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
-                Kategori
-              </Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="h-12 rounded-xl" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
-                  <SelectValue placeholder="Pilih kategori" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="makan">Makan</SelectItem>
-                  <SelectItem value="transport">Transport</SelectItem>
-                  <SelectItem value="belanja">Belanja</SelectItem>
-                  <SelectItem value="tagihan">Tagihan</SelectItem>
-                  <SelectItem value="gaji">Gaji</SelectItem>
-                  <SelectItem value="lainnya">Lainnya</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Category */}
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+              Kategori
+            </Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger
+                className="h-12 rounded-xl text-[15px]"
+                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+              >
+                <SelectValue placeholder="Pilih kategori" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {catsByType.map((c) => (
+                  <SelectItem key={c.value} value={c.value} className="text-[15px] py-2.5">
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Anggota */}
-            {members.length > 0 && (
-              <div className="space-y-1.5">
-                <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
-                  Anggota
-                </Label>
-                <Select value={memberId} onValueChange={setMemberId}>
-                  <SelectTrigger className="h-12 rounded-xl" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
-                    <SelectValue placeholder="Semua anggota" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Semua anggota</SelectItem>
-                    {members.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+          {/* Member (from family) */}
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+              Anggota
+            </Label>
+            <Select value={memberId} onValueChange={setMemberId}>
+              <SelectTrigger
+                className="h-12 rounded-xl text-[15px]"
+                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+              >
+                <SelectValue placeholder="Pilih anggota" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {members.map((m) => (
+                  <SelectItem key={m.id} value={m.id} className="text-[15px] py-2.5">
+                    {m.role} {m.user_id === me?.user_id ? "(Kamu)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Note + Voice */}
-            <div className="space-y-1.5">
-              <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
-                Catatan
-              </Label>
-              <div className="flex gap-2">
-                <Textarea
-                  placeholder="Beli sayur di pasar..."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={2}
-                  className="flex-1 rounded-xl resize-none"
-                  style={{ borderColor: "var(--border)", background: "var(--bg)" }}
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant={listening ? "destructive" : "outline"}
-                  className={`shrink-0 size-12 rounded-xl transition-all duration-200 ${
-                    listening
-                      ? "bg-red-500 hover:bg-red-600 border-0 text-white animate-pulse-ring"
-                      : ""
-                  }`}
-                  style={!listening ? { borderColor: "var(--border)" } : {}}
-                  onClick={() =>
-                    listening ? stopListening() : startListening()
-                  }
-                >
-                  {listening ? (
-                    <MicOff size={20} />
-                  ) : (
-                    <Mic size={20} style={{ color: "var(--text-muted)" }} />
-                  )}
-                </Button>
-              </div>
-              {listening && (
-                <p className="text-xs text-red-500 animate-pulse flex items-center gap-1">
-                  <span className="size-1.5 rounded-full bg-red-500" />
-                  Mendengarkan...
-                </p>
-              )}
-            </div>
+          {/* Note */}
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+              Catatan
+            </Label>
+            <Textarea
+              placeholder="Opsional"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="rounded-xl resize-none h-20"
+              style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+            />
+          </div>
 
-            {/* Submit */}
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={toggleMic}
+              className={`flex-1 h-12 rounded-xl gap-2 text-[15px] font-semibold ${
+                listening ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-500" : ""
+              }`}
+              style={{
+                borderColor: listening ? "transparent" : "var(--border)",
+                background: listening ? undefined : "var(--surface)",
+              }}
+            >
+              {listening ? <MicOff size={18} /> : <Mic size={18} />}
+              {listening ? "Stop" : "Suara"}
+            </Button>
             <Button
               type="submit"
-              className="w-full h-12 rounded-xl bg-[var(--navy)] hover:bg-[var(--navy)]/90 text-[15px] font-semibold tracking-tight mt-2"
+              disabled={saving}
+              className="flex-1 h-12 rounded-xl gap-2 text-[15px] font-semibold bg-[var(--navy)] hover:bg-[var(--navy)]/90"
             >
-              <Save size={17} className="mr-2" />
-              Simpan
+              <Save size={18} />
+              {saving ? "Menyimpan..." : "Simpan"}
             </Button>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );

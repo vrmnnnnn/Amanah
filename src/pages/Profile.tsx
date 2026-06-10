@@ -11,14 +11,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { signOut, useSession } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
+import { useFamily } from "@/lib/family-context";
 import { toast } from "sonner";
-import { LogOut, Mail, ShieldCheck, KeyRound, Moon, Sun, Coins, Download } from "lucide-react";
+import { LogOut, Mail, ShieldCheck, KeyRound, Moon, Sun, Coins, Download, Users } from "lucide-react";
 
 const BUDGET_KEY = "amanah-budget";
 
 export default function Profile() {
-  const { data: session } = useSession();
+  const { data: session } = authClient.useSession();
+  const { family, me } = useFamily();
   const navigate = useNavigate();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -34,7 +36,7 @@ export default function Profile() {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      await authClient.signOut();
       toast.success("Berhasil keluar");
       navigate("/login", { replace: true });
     } catch {
@@ -56,21 +58,24 @@ export default function Profile() {
   };
 
   const exportCSV = async () => {
+    if (!family) return;
     const { supabase } = await import("@/lib/supabase");
     const { data: t } = await supabase
       .from("transactions")
-      .select("*, family_members(name)")
-      .eq("user_id", session?.user?.id)
+      .select("*, member_id(id, role)")
+      .eq("family_id", family.id)
       .order("created_at", { ascending: false });
+
     if (!t || t.length === 0) {
       toast.error("Belum ada transaksi untuk diexport");
       return;
     }
+
     const header = "Tanggal,Tipe,Jumlah,Kategori,Catatan,Anggota";
     const rows = t.map((tx: any) => {
       const date = new Date(tx.created_at).toLocaleDateString("id-ID");
-      const name = tx.family_members?.name || "";
-      return `${date},${tx.type},${tx.amount},${tx.category},"${tx.note || ""}",${name}`;
+      const role = tx.member_id?.role || "";
+      return `${date},${tx.type},${tx.amount},${tx.category},"${tx.note || ""}",${role}`;
     });
     const csv = "\uFEFF" + header + "\n" + rows.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -92,16 +97,35 @@ export default function Profile() {
         </h1>
         <div className="flex justify-center mt-5">
           <div className="size-16 rounded-full bg-white/[0.10] flex items-center justify-center text-2xl font-bold text-[#faf9f7]/80">
-            {session?.user?.email?.[0]?.toUpperCase() || "?"}
+            {(me?.role || session?.user?.email)?.[0]?.toUpperCase() || "?"}
           </div>
         </div>
         <p className="text-center text-sm text-[var(--navy-light)] mt-2">
-          {session?.user?.email || "—"}
+          {me?.role || "Anggota"}
         </p>
       </div>
 
       {/* Info cards */}
       <div className="px-5 mt-6 space-y-2.5">
+        {/* Family */}
+        {family && (
+          <div className="card-layered p-4">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--surface-hover)" }}>
+                <Users size={18} style={{ color: "var(--navy)" }} />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
+                  Keluarga
+                </p>
+                <p className="font-medium text-sm truncate" style={{ color: "var(--text)" }}>
+                  {family.name}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="card-layered p-4">
           <div className="flex items-center gap-3">
             <div className="size-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--surface-hover)" }}>

@@ -16,10 +16,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { authClient } from "@/lib/auth-client";
+import { useFamily } from "@/lib/family-context";
 import { toast } from "sonner";
 import {
   ArrowDownToLine,
@@ -28,6 +28,7 @@ import {
   Trash2,
   Pencil,
   X,
+  Download,
 } from "lucide-react";
 
 const categoryLabel: Record<string, string> = {
@@ -36,13 +37,14 @@ const categoryLabel: Record<string, string> = {
   belanja: "Belanja",
   tagihan: "Tagihan",
   gaji: "Gaji",
+  bisnis: "Bisnis",
+  investasi: "Investasi",
   lainnya: "Lainnya",
 };
 
 export default function Riwayat() {
-  const { data: session } = authClient.useSession();
+  const { family, members } = useFamily();
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
 
   // Filters
   const [filterMonth, setFilterMonth] = useState("");
@@ -59,22 +61,16 @@ export default function Riwayat() {
   const [editMemberId, setEditMemberId] = useState("");
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!family) return;
     loadTransactions();
-    supabase
-      .from("family_members")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .then(({ data }) => {
-        if (data) setMembers(data);
-      });
-  }, [session]);
+  }, [family]);
 
   const loadTransactions = async () => {
+    if (!family) return;
     const { data } = await supabase
       .from("transactions")
-      .select("*, family_members(name)")
-      .eq("user_id", session?.user?.id)
+      .select("*, member_id(id, role)")
+      .eq("family_id", family.id)
       .order("created_at", { ascending: false })
       .limit(200);
     if (data) setTransactions(data);
@@ -116,6 +112,40 @@ export default function Riwayat() {
     }
   };
 
+  const exportCSV = () => {
+    if (filtered.length === 0) {
+      toast.error("Tidak ada data untuk diexport");
+      return;
+    }
+
+    const rows = filtered.map((tx) => {
+      const date = new Date(tx.created_at).toLocaleDateString("id-ID");
+      const memberRole = members.find((m) => m.id === tx.member_id)?.role || "Semua";
+      return [
+        date,
+        tx.type === "masuk" ? "Masuk" : "Keluar",
+        tx.amount,
+        categoryLabel[tx.category] || tx.category,
+        tx.note || "",
+        memberRole,
+      ];
+    });
+
+    const header = ["Tanggal", "Tipe", "Jumlah", "Kategori", "Catatan", "Anggota"];
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `amanah-riwayat-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV didownload");
+  };
+
   const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
   // Month options (last 12 months)
@@ -142,12 +172,27 @@ export default function Riwayat() {
     return true;
   });
 
+  // Get all categories from data for filter dropdown
+  const allCats = [...new Set(transactions.map((t) => t.category))];
+
   return (
     <div className="min-h-dvh pb-24" style={{ background: "var(--bg)" }}>
       <div className="px-5 pt-10">
-        <h1 className="text-2xl font-bold text-center tracking-heading" style={{ color: "var(--text)" }}>
-          Riwayat
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-heading" style={{ color: "var(--text)" }}>
+            Riwayat
+          </h1>
+
+          {/* Export */}
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg"
+            style={{ color: "var(--text-muted)", background: "var(--surface-hover)" }}
+          >
+            <Download size={13} />
+            CSV
+          </button>
+        </div>
 
         {/* Filter toggle */}
         <div className="flex justify-end mt-2">
@@ -206,8 +251,8 @@ export default function Riwayat() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua kategori</SelectItem>
-                {Object.entries(categoryLabel).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                {allCats.map((c) => (
+                  <SelectItem key={c} value={c}>{categoryLabel[c] || c}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -249,7 +294,7 @@ export default function Riwayat() {
 
                 <div className="min-w-0">
                   <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
-                    {categoryLabel[tx.category] || "Lainnya"}
+                    {categoryLabel[tx.category] || tx.category}
                   </p>
                   {tx.note && (
                     <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
@@ -257,13 +302,13 @@ export default function Riwayat() {
                     </p>
                   )}
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    {tx.family_members?.name && (
+                    {tx.member_id && (
                       <Badge
                         variant="outline"
                         className="text-[10px] h-5 px-1.5"
                         style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
                       >
-                        {tx.family_members.name}
+                        {tx.member_id?.role || "Anggota"}
                       </Badge>
                     )}
                     <span className="text-[10px]" style={{ color: "var(--text-faded)" }}>
@@ -371,8 +416,8 @@ export default function Riwayat() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(categoryLabel).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    {allCats.map((c) => (
+                      <SelectItem key={c} value={c}>{categoryLabel[c] || c}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -388,7 +433,7 @@ export default function Riwayat() {
                     <SelectContent>
                       <SelectItem value="">Semua anggota</SelectItem>
                       {members.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        <SelectItem key={m.id} value={m.id}>{m.role}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

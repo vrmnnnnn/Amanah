@@ -3,8 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { FamilyProvider, useFamily } from "@/lib/family-context";
 import BottomNav from "@/components/BottomNav";
 import Login from "@/pages/Login";
+import Onboarding from "@/pages/Onboarding";
 import Home from "@/pages/Home";
 import Catat from "@/pages/Catat";
 import Riwayat from "@/pages/Riwayat";
@@ -13,21 +15,29 @@ import Profile from "@/pages/Profile";
 
 const queryClient = new QueryClient();
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending } = authClient.useSession();
+/** Loading spinner */
+function Spinner() {
+  return (
+    <div className="min-h-dvh flex flex-col items-center justify-center bg-[var(--bg)] gap-3">
+      <div className="size-2 rounded-full bg-[var(--gold)] animate-pulse" />
+      <p className="text-sm text-[var(--text-muted)] animate-pulse">Memuat...</p>
+    </div>
+  );
+}
 
-  if (isPending) {
-    return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-[var(--bg)] gap-3">
-        <div className="size-2 rounded-full bg-[var(--gold)] animate-pulse" />
-        <p className="text-sm text-[var(--text-muted)] animate-pulse">Memuat...</p>
-      </div>
-    );
-  }
+/**
+ * Guard: checks session + family membership.
+ * - No session → /login
+ * - Session but no family → /onboarding
+ * - Session + family → render children
+ */
+function AppGuard({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending: sessionLoading } = authClient.useSession();
+  const { family, loading: familyLoading } = useFamily();
 
-  if (!session) {
-    return <Navigate to="/login" replace />;
-  }
+  if (sessionLoading || familyLoading) return <Spinner />;
+  if (!session) return <Navigate to="/login" replace />;
+  if (!family) return <Navigate to="/onboarding" replace />;
 
   return (
     <>
@@ -37,66 +47,94 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Onboarding guard: must be logged in, but must NOT have a family.
+ * If already has family → redirect to /home
+ */
+function OnboardingGuard({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending: sessionLoading } = authClient.useSession();
+  const { family, loading: familyLoading } = useFamily();
+
+  if (sessionLoading || familyLoading) return <Spinner />;
+  if (!session) return <Navigate to="/login" replace />;
+  if (family) return <Navigate to="/home" replace />;
+
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              style: {
-                borderRadius: "0.75rem",
-                fontSize: "14px",
-                fontWeight: 500,
-              },
-            }}
-          />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/home"
-              element={
-                <AuthGuard>
-                  <Home />
-                </AuthGuard>
-              }
+        <FamilyProvider>
+          <BrowserRouter>
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                style: {
+                  borderRadius: "0.75rem",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                },
+              }}
             />
-            <Route
-              path="/catat"
-              element={
-                <AuthGuard>
-                  <Catat />
-                </AuthGuard>
-              }
-            />
-            <Route
-              path="/riwayat"
-              element={
-                <AuthGuard>
-                  <Riwayat />
-                </AuthGuard>
-              }
-            />
-            <Route
-              path="/anggota"
-              element={
-                <AuthGuard>
-                  <Anggota />
-                </AuthGuard>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <AuthGuard>
-                  <Profile />
-                </AuthGuard>
-              }
-            />
-            <Route path="*" element={<Navigate to="/home" replace />} />
-          </Routes>
-        </BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+
+              <Route
+                path="/onboarding"
+                element={
+                  <OnboardingGuard>
+                    <Onboarding />
+                  </OnboardingGuard>
+                }
+              />
+
+              <Route
+                path="/home"
+                element={
+                  <AppGuard>
+                    <Home />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/catat"
+                element={
+                  <AppGuard>
+                    <Catat />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/riwayat"
+                element={
+                  <AppGuard>
+                    <Riwayat />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/anggota"
+                element={
+                  <AppGuard>
+                    <Anggota />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <AppGuard>
+                    <Profile />
+                  </AppGuard>
+                }
+              />
+
+              <Route path="*" element={<Navigate to="/home" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </FamilyProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );
