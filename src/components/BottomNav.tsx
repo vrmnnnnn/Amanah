@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, PenLine, Clock, Users, UserCircle } from "lucide-react";
 
 const tabs = [
-  { path: "/home", label: "Home", icon: "🏠" },
-  { path: "/catat", label: "Catat", icon: "✍️" },
-  { path: "/riwayat", label: "Riwayat", icon: "📋" },
-  { path: "/anggota", label: "Anggota", icon: "👥" },
-  { path: "/profile", label: "Profile", icon: "👤" },
+  { path: "/home", label: "Home", Icon: LayoutDashboard },
+  { path: "/catat", label: "Catat", Icon: PenLine },
+  { path: "/riwayat", label: "Riwayat", Icon: Clock },
+  { path: "/anggota", label: "Anggota", Icon: Users },
+  { path: "/profile", label: "Profil", Icon: UserCircle },
 ];
 
 export default function BottomNav() {
@@ -13,22 +14,34 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-border px-2 pb-safe">
+    <nav
+      className="fixed bottom-0 left-0 right-0 backdrop-blur-xl border-t px-2 pb-safe z-50"
+      style={{
+        background: "color-mix(in srgb, var(--surface) 85%, transparent)",
+        borderColor: "var(--border)",
+      }}
+    >
       <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
-        {tabs.map((tab) => {
-          const active = location.pathname === tab.path;
+        {tabs.map(({ path, label, Icon }) => {
+          const active = location.pathname === path;
           return (
             <button
-              key={tab.path}
-              onClick={() => navigate(tab.path)}
-              className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors ${
-                active
-                  ? "text-emerald-700 bg-emerald-50"
-                  : "text-muted-foreground hover:text-emerald-600"
-              }`}
+              key={path}
+              onClick={() => navigate(path)}
+              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200"
+              style={{
+                color: active ? "var(--navy)" : "var(--text-muted)",
+                background: active ? "color-mix(in srgb, var(--navy) 6%, transparent)" : "transparent",
+              }}
             >
-              <span className="text-xl">{tab.icon}</span>
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <Icon
+                size={20}
+                strokeWidth={active ? 2.25 : 1.75}
+                className="transition-all duration-200"
+              />
+              <span className="text-[10px] font-semibold tracking-tight">
+                {label}
+              </span>
             </button>
           );
         })}

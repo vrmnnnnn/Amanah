@@ -1,6 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +13,13 @@ import {
 import { supabase } from "@/lib/supabase";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Mic,
+  MicOff,
+  Save,
+} from "lucide-react";
 
 declare global {
   interface Window {
@@ -33,6 +39,17 @@ export default function Catat() {
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
+  useEffect(() => {
+    if (!session?.user) return;
+    supabase
+      .from("family_members")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .then(({ data }) => {
+        if (data) setMembers(data);
+      });
+  }, [session]);
+
   const startListening = async () => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -41,12 +58,11 @@ export default function Catat() {
       return;
     }
 
-    // Cek permission mikrofon
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err: any) {
       if (err.name === "NotAllowedError") {
-        toast.error("Izin mikrofon ditolak. Buka Settings > Site Settings > Microphone");
+        toast.error("Izin mikrofon ditolak. Buka pengaturan browser.");
       } else if (err.name === "NotFoundError") {
         toast.error("Mikrofon tidak ditemukan di perangkat ini");
       } else {
@@ -67,15 +83,11 @@ export default function Catat() {
     };
 
     recognition.onerror = (event: any) => {
-      console.error("Speech error:", event.error, event.message);
+      console.error("Speech error:", event.error);
       if (event.error === "not-allowed") {
-        toast.error("Izin mikrofon ditolak. Cek pengaturan browser.");
+        toast.error("Izin mikrofon ditolak.");
       } else if (event.error === "no-speech") {
-        toast.error("Tidak ada suara terdeteksi. Coba lagi.");
-      } else if (event.error === "audio-capture") {
-        toast.error("Mikrofon tidak tersedia.");
-      } else if (event.error === "network") {
-        toast.error("Butuh koneksi internet untuk voice input.");
+        toast.error("Tidak ada suara terdeteksi.");
       } else {
         toast.error("Gagal merekam: " + (event.error || "unknown"));
       }
@@ -83,7 +95,6 @@ export default function Catat() {
     };
 
     recognition.onend = () => setListening(false);
-
     recognitionRef.current = recognition;
     recognition.start();
     setListening(true);
@@ -110,7 +121,7 @@ export default function Catat() {
     if (error) {
       toast.error("Gagal menyimpan: " + error.message);
     } else {
-      toast.success("Tersimpan! 💰");
+      toast.success("Transaksi tersimpan!");
       setAmount("");
       setCategory("");
       setNote("");
@@ -118,96 +129,165 @@ export default function Catat() {
   };
 
   return (
-    <div className="min-h-dvh bg-gradient-to-b from-emerald-50 to-white pb-20">
-      <div className="px-4 pt-8">
-        <h1 className="text-2xl font-bold text-emerald-700 text-center">
-          ✍️ Catat Transaksi
+    <div className="min-h-dvh pb-24" style={{ background: "var(--bg)" }}>
+      <div className="px-5 pt-10">
+        {/* Header */}
+        <h1 className="text-2xl font-bold text-center tracking-heading" style={{ color: "var(--text)" }}>
+          Catat Transaksi
         </h1>
+        <p className="text-[13px] text-center mt-1" style={{ color: "var(--text-muted)" }}>
+          {type === "keluar" ? "Pengeluaran" : "Pemasukan"}
+        </p>
 
-        <Card className="mt-4 border-0 shadow-sm">
-          <CardContent className="p-4">
-            {/* Type toggle */}
-            <div className="flex gap-2 mb-4">
-              <Button
-                type="button"
-                variant={type === "keluar" ? "destructive" : "outline"}
-                className="flex-1"
-                onClick={() => setType("keluar")}
-              >
-                🔴 Keluar
-              </Button>
-              <Button
-                type="button"
-                variant={type === "masuk" ? "default" : "outline"}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => setType("masuk")}
-              >
-                🟢 Masuk
-              </Button>
-            </div>
+        {/* Form card */}
+        <div className="card-layered mt-5 p-5">
+          {/* Type toggle */}
+          <div className="flex rounded-xl p-1 gap-1 mb-5" style={{ background: "var(--surface-hover)" }}>
+            <button
+              type="button"
+              onClick={() => setType("keluar")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-200 ${
+                type === "keluar"
+                  ? "bg-white text-red-500 shadow-sm dark:bg-[var(--surface)]"
+                  : ""
+              }`}
+              style={type !== "keluar" ? { color: "var(--text-muted)" } : {}}
+            >
+              <ArrowUpFromLine size={16} />
+              Keluar
+            </button>
+            <button
+              type="button"
+              onClick={() => setType("masuk")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-sm font-semibold transition-all duration-200 ${
+                type === "masuk"
+                  ? "bg-white text-[var(--green)] shadow-sm dark:bg-[var(--surface)]"
+                  : ""
+              }`}
+              style={type !== "masuk" ? { color: "var(--text-muted)" } : {}}
+            >
+              <ArrowDownToLine size={16} />
+              Masuk
+            </button>
+          </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Jumlah (Rp)</Label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Amount */}
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+                Jumlah
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold" style={{ color: "var(--text-muted)" }}>
+                  Rp
+                </span>
                 <Input
                   type="number"
-                  placeholder="50000"
+                  placeholder="50.000"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
+                  className="h-12 pl-10 rounded-xl text-lg font-semibold focus:border-[var(--gold)] focus:ring-[var(--gold)]/20"
+                  style={{ borderColor: "var(--border)", background: "var(--bg)" }}
                 />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Kategori</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih kategori" />
+            {/* Category */}
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+                Kategori
+              </Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="h-12 rounded-xl" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="makan">Makan</SelectItem>
+                  <SelectItem value="transport">Transport</SelectItem>
+                  <SelectItem value="belanja">Belanja</SelectItem>
+                  <SelectItem value="tagihan">Tagihan</SelectItem>
+                  <SelectItem value="gaji">Gaji</SelectItem>
+                  <SelectItem value="lainnya">Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Anggota */}
+            {members.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+                  Anggota
+                </Label>
+                <Select value={memberId} onValueChange={setMemberId}>
+                  <SelectTrigger className="h-12 rounded-xl" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                    <SelectValue placeholder="Semua anggota" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="makan">🍔 Makan</SelectItem>
-                    <SelectItem value="transport">🚗 Transport</SelectItem>
-                    <SelectItem value="belanja">🛒 Belanja</SelectItem>
-                    <SelectItem value="tagihan">📄 Tagihan</SelectItem>
-                    <SelectItem value="gaji">💼 Gaji</SelectItem>
-                    <SelectItem value="lainnya">📦 Lainnya</SelectItem>
+                    <SelectItem value="">Semua anggota</SelectItem>
+                    {members.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+            )}
 
-              <div className="space-y-2">
-                <Label>Catatan</Label>
-                <div className="flex gap-2">
-                  <Textarea
-                    placeholder="Beli sayur di pasar..."
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={2}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant={listening ? "destructive" : "outline"}
-                    size="icon"
-                    className="shrink-0"
-                    onClick={() => (listening ? stopListening() : startListening())}
-                  >
-                    🎙️
-                  </Button>
-                </div>
-                {listening && (
-                  <p className="text-xs text-red-500 animate-pulse">
-                    🔴 Mendengarkan...
-                  </p>
-                )}
+            {/* Note + Voice */}
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+                Catatan
+              </Label>
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Beli sayur di pasar..."
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  className="flex-1 rounded-xl resize-none"
+                  style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={listening ? "destructive" : "outline"}
+                  className={`shrink-0 size-12 rounded-xl transition-all duration-200 ${
+                    listening
+                      ? "bg-red-500 hover:bg-red-600 border-0 text-white animate-pulse-ring"
+                      : ""
+                  }`}
+                  style={!listening ? { borderColor: "var(--border)" } : {}}
+                  onClick={() =>
+                    listening ? stopListening() : startListening()
+                  }
+                >
+                  {listening ? (
+                    <MicOff size={20} />
+                  ) : (
+                    <Mic size={20} style={{ color: "var(--text-muted)" }} />
+                  )}
+                </Button>
               </div>
+              {listening && (
+                <p className="text-xs text-red-500 animate-pulse flex items-center gap-1">
+                  <span className="size-1.5 rounded-full bg-red-500" />
+                  Mendengarkan...
+                </p>
+              )}
+            </div>
 
-              <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">
-                Simpan
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            {/* Submit */}
+            <Button
+              type="submit"
+              className="w-full h-12 rounded-xl bg-[var(--navy)] hover:bg-[var(--navy)]/90 text-[15px] font-semibold tracking-tight mt-2"
+            >
+              <Save size={17} className="mr-2" />
+              Simpan
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );

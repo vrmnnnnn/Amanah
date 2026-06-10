@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn, signUp } from "@/lib/auth-client";
@@ -33,24 +32,38 @@ export default function Login() {
 
   const handleGoogle = async () => {
     await signIn.social({ provider: "google" });
-    // OAuth redirects the whole page — no navigate needed
   };
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-emerald-50 to-white p-4">
-      <Card className="w-full max-w-sm shadow-lg border-0">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold text-emerald-700">
-            🤲 Amanah
-          </CardTitle>
-          <p className="text-muted-foreground text-sm mt-1">
-            Catatan keuangan keluarga
-          </p>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-dvh flex flex-col items-center justify-center px-6" style={{ background: "var(--bg)" }}>
+      {/* Wordmark */}
+      <div className="mb-2 text-center">
+        <h1
+          className="text-4xl font-bold tracking-heading"
+          style={{ color: "var(--text)", letterSpacing: "-0.03em" }}
+        >
+          Amanah
+        </h1>
+        <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          Catatan keuangan keluarga
+        </p>
+      </div>
+
+      {/* Form card */}
+      <div className="w-full max-w-sm mt-8">
+        <div
+          className="rounded-2xl p-6"
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.02), 0 4px 24px rgba(0,0,0,0.04)",
+          }}
+        >
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -58,10 +71,14 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="h-11 rounded-xl text-[15px] focus:border-[var(--gold)] focus:ring-[var(--gold)]/20"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -69,25 +86,31 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="h-11 rounded-xl text-[15px] focus:border-[var(--gold)] focus:ring-[var(--gold)]/20"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
               />
             </div>
-            <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">
+            <Button
+              type="submit"
+              className="w-full h-11 rounded-xl bg-[var(--navy)] hover:bg-[var(--navy)]/90 text-[15px] font-semibold tracking-tight"
+            >
               {isLogin ? "Masuk" : "Daftar"}
             </Button>
           </form>
 
-          <div className="relative my-4">
+          <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
+              <div className="w-full border-t" style={{ borderColor: "var(--border)" }} />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-card px-2 text-muted-foreground">atau</span>
+              <span className="px-3" style={{ background: "var(--surface)", color: "var(--text-muted)" }}>atau</span>
             </div>
           </div>
 
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full h-11 rounded-xl text-[15px] font-medium transition-colors"
+            style={{ borderColor: "var(--border)" }}
             onClick={handleGoogle}
           >
             <svg className="size-4 mr-2" viewBox="0 0 24 24">
@@ -99,18 +122,23 @@ export default function Login() {
             Google
           </Button>
 
-          <p className="text-center text-sm text-muted-foreground mt-4">
+          <p className="text-center text-[13px] mt-5" style={{ color: "var(--text-muted)" }}>
             {isLogin ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
             <button
               type="button"
-              className="text-emerald-600 font-medium hover:underline"
+              className="text-[var(--gold)] font-semibold hover:underline underline-offset-2"
               onClick={() => setIsLogin(!isLogin)}
             >
               {isLogin ? "Daftar" : "Masuk"}
             </button>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <p className="text-[11px] mt-auto pb-8 pt-12" style={{ color: "var(--text-faded)" }}>
+        Amanah &middot; v2
+      </p>
     </div>
   );
 }
