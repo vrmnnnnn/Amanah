@@ -13,7 +13,9 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { useFamily } from "@/lib/family-context";
 import { useCategories } from "@/lib/categories";
+import { useAccounts } from "@/lib/accounts";
 import type { Category } from "@/lib/categories";
+import type { Account } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
@@ -32,6 +34,7 @@ export default function Profile() {
   const [savedBudget, setSavedBudget] = useState<number | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [catOpen, setCatOpen] = useState(false);
+  const [accOpen, setAccOpen] = useState(false);
 
   // Edit profile state
   const [editOpen, setEditOpen] = useState(false);
@@ -43,10 +46,13 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Categories
-  const { all: allCats, custom, addCategory, removeCategory, ICON_OPTIONS } = useCategories(family?.id);
+  const { all: allCats, custom, addCategory, removeCategory } = useCategories(family?.id);
+  const { accounts, addAccount, deleteAccount } = useAccounts(family?.id);
   const [newCatName, setNewCatName] = useState("");
-  const [newCatType, setNewCatType] = useState<"masuk" | "keluar">("keluar");
   const [newCatIcon, setNewCatIcon] = useState("category");
+  const [newCatType, setNewCatType] = useState<"masuk" | "keluar">("keluar");
+  const [newAccName, setNewAccName] = useState("");
+  const [newAccType, setNewAccType] = useState<Account["type"]>("tunai");
 
   useEffect(() => {
     setMounted(true);
@@ -202,6 +208,14 @@ export default function Profile() {
     setNewCatName("");
     setNewCatIcon("category");
     toast.success(`Kategori "${name}" ditambahkan`);
+  };
+
+  const handleAddAccount = () => {
+    const name = newAccName.trim();
+    if (!name) { toast.error("Isi nama akun"); return; }
+    addAccount(name, newAccType);
+    setNewAccName("");
+    toast.success(`Akun "${name}" ditambahkan`);
   };
 
   const exportCSV = async () => {
@@ -475,6 +489,23 @@ export default function Profile() {
             <span className="ml-auto material-symbols-outlined text-on-surface-variant/40">chevron_right</span>
           </GlassCard>
 
+          {/* Kelola Akun */}
+          <GlassCard
+            className="p-4 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-all"
+            onClick={() => setAccOpen(true)}
+          >
+            <div className="w-10 h-10 rounded-xl bg-tertiary-container/60 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-tertiary">account_balance_wallet</span>
+            </div>
+            <div>
+              <p className="font-medium text-sm text-on-surface">Kelola Akun</p>
+              <p className="text-xs text-on-surface-variant">
+                {accounts.length} akun · tunai, bank, e-wallet
+              </p>
+            </div>
+            <span className="ml-auto material-symbols-outlined text-on-surface-variant/40">chevron_right</span>
+          </GlassCard>
+
           {/* Export */}
           <GlassCard
             className="p-4 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-all"
@@ -706,6 +737,88 @@ export default function Profile() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Account Management Dialog */}
+      <Dialog open={accOpen} onOpenChange={setAccOpen}>
+        <DialogContent className="rounded-2xl p-6 gap-5 max-w-sm max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+              Kelola Akun
+            </DialogTitle>
+            <DialogDescription>
+              Pisahkan saldo tunai, rekening bank, dan e-wallet
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Add new account */}
+          <div className="space-y-3">
+            <Input
+              placeholder="Nama akun — e.g. BCA, GoPay"
+              value={newAccName}
+              onChange={(e) => setNewAccName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddAccount()}
+              className="rounded-xl bg-surface-container border-outline-variant"
+            />
+            <div className="flex gap-2">
+              {(["tunai", "bank", "ewallet"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setNewAccType(t)}
+                  className={`flex-1 py-2 rounded-full text-xs font-bold border transition-all ${
+                    newAccType === t
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-surface-container text-on-surface-variant border-outline-variant"
+                  }`}
+                >
+                  {t === "tunai" ? "💵 Tunai" : t === "bank" ? "🏦 Bank" : "📱 E-Wallet"}
+                </button>
+              ))}
+            </div>
+            <Button
+              onClick={handleAddAccount}
+              className="w-full h-12 rounded-full bg-primary text-primary-foreground font-bold"
+            >
+              <span className="material-symbols-outlined text-base">add</span>
+              Tambah Akun
+            </Button>
+          </div>
+
+          {/* Account list */}
+          {accounts.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-bold uppercase text-on-surface-variant tracking-wider">Daftar Akun</p>
+              {accounts.map((acc) => (
+                <div
+                  key={acc.id}
+                  className="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-3"
+                >
+                  <span className="material-symbols-outlined text-primary">
+                    {acc.type === "tunai" ? "payments" : acc.type === "bank" ? "account_balance" : "phone_android"}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-on-surface truncate">{acc.name}</p>
+                    <p className="text-xs text-on-surface-variant capitalize">{acc.type}</p>
+                  </div>
+                  <p className={`text-sm font-bold ${(acc.balance ?? 0) >= 0 ? "text-primary" : "text-error"}`}>
+                    Rp {(acc.balance ?? 0).toLocaleString("id-ID")}
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Hapus akun "${acc.name}"? Transaksi akan tetap ada tapi tanpa akun.`)) {
+                        deleteAccount(acc.id);
+                      }
+                    }}
+                    className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-error hover:bg-error-container transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm">delete</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

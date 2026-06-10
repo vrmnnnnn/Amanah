@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { authClient } from "@/lib/auth-client";
 import { useFamily } from "@/lib/family-context";
 import { useCategories } from "@/lib/categories";
+import { useAccounts } from "@/lib/accounts";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
 import VoiceButton from "@/components/VoiceButton";
@@ -20,11 +21,13 @@ export default function Catat() {
   const { data: session } = authClient.useSession();
   const { family, me, members } = useFamily();
   const { getByType, getIcon, getLabel, all: allCategories } = useCategories(family?.id);
+  const { accounts } = useAccounts(family?.id);
   const [type, setType] = useState<"masuk" | "keluar">("keluar");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
   const [memberId, setMemberId] = useState("");
+  const [accountId, setAccountId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -123,6 +126,7 @@ export default function Catat() {
         family_id: family.id,
         user_id: session.user.id,
         member_id: memberId,
+        account_id: accountId,
         type,
         amount: Number(amount.replace(/\./g, "")),
         category,
@@ -208,6 +212,46 @@ export default function Catat() {
               ))}
             </div>
           </div>
+
+          {/* ── Account ── */}
+          {accounts.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant px-1">
+                Akun
+              </label>
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 snap-x">
+                <button
+                  type="button"
+                  onClick={() => setAccountId(null)}
+                  className={`snap-start flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm border transition-all ${
+                    accountId === null
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-surface-container border-outline-variant text-on-surface-variant hover:bg-primary-container"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">all_inclusive</span>
+                  Semua
+                </button>
+                {accounts.map((acc) => (
+                  <button
+                    key={acc.id}
+                    type="button"
+                    onClick={() => setAccountId(acc.id)}
+                    className={`snap-start flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm border transition-all ${
+                      accountId === acc.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-surface-container border-outline-variant text-on-surface-variant hover:bg-primary-container"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {acc.type === "tunai" ? "payments" : acc.type === "bank" ? "account_balance" : "phone_android"}
+                    </span>
+                    {acc.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── Member ── */}
           <div className="space-y-2">

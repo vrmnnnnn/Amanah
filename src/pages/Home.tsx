@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useFamily } from "@/lib/family-context";
 import { useCategories } from "@/lib/categories";
+import { useAccounts } from "@/lib/accounts";
 import TopAppBar from "@/components/TopAppBar";
 import SpriteAvatar from "@/components/SpriteAvatar";
 import ProgressBar from "@/components/ProgressBar";
@@ -10,6 +11,7 @@ import TransactionCard from "@/components/TransactionCard";
 export default function Home() {
   const { family, members } = useFamily();
   const { getLabel, getIcon } = useCategories(family?.id);
+  const { accounts } = useAccounts(family?.id);
   const [totalMasuk, setTotalMasuk] = useState(0);
   const [totalKeluar, setTotalKeluar] = useState(0);
   const [recentTx, setRecentTx] = useState<any[]>([]);
@@ -84,6 +86,31 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* ── Account Balances ── */}
+        {accounts.length > 0 && (
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 snap-x">
+            {accounts.map((acc) => (
+              <div
+                key={acc.id}
+                className="snap-start flex-shrink-0 bg-surface-container-lowest rounded-xl px-4 py-3 min-w-[140px] shadow-[0_4px_15px_rgba(255,209,220,0.15)] border border-outline-variant/20"
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="material-symbols-outlined text-xs text-primary">
+                    {acc.type === "tunai" ? "payments" : acc.type === "bank" ? "account_balance" : "phone_android"}
+                  </span>
+                  <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
+                    {acc.type}
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-on-surface truncate">{acc.name}</p>
+                <p className={`text-sm font-extrabold mt-1 ${(acc.balance ?? 0) >= 0 ? "text-primary" : "text-error"}`}>
+                  Rp {(acc.balance ?? 0).toLocaleString("id-ID")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ── Bento Grid Stats ── */}
         <div className="grid grid-cols-2 gap-3">
