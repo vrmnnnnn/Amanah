@@ -139,7 +139,7 @@ export default function Goals() {
         {goals.length === 0 && (
           <div className="text-center py-16">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary-container flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-on-primary-container">savings</span>
+              <span className="material-symbols-outlined text-3xl text-on-primary-container">spa</span>
             </div>
             <p className="font-semibold text-on-surface">Belum ada target</p>
             <p className="text-sm text-on-surface-variant mt-1">Tambahkan target tabungan keluarga!</p>

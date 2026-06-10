@@ -418,7 +418,7 @@ export default function Profile() {
           <GlassCard className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-tertiary-container/60 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-amber-600">savings</span>
+                <span className="material-symbols-outlined text-amber-600">spa</span>
               </div>
               <div>
                 <p className="font-medium text-sm text-on-surface">Budget Bulanan</p>

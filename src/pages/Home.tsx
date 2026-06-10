@@ -136,7 +136,7 @@ export default function Home() {
             <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_15px_rgba(255,209,220,0.15)] border border-outline-variant/20">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary">savings</span>
+                  <span className="material-symbols-outlined text-primary">spa</span>
                   <h3 className="font-bold text-sm text-on-surface">Target Tabungan</h3>
                 </div>
                 <span className="text-xs font-bold text-primary">{pct}%</span>
