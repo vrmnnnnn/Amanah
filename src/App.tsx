@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import Catat from "@/pages/Catat";
 import Riwayat from "@/pages/Riwayat";
 import Anggota from "@/pages/Anggota";
+import Profile from "@/pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,14 @@ export default function App() {
             element={
               <AuthGuard>
                 <Anggota />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <AuthGuard>
+                <Profile />
               </AuthGuard>
             }
           />

@@ -5,6 +5,7 @@ const tabs = [
   { path: "/catat", label: "Catat", icon: "✍️" },
   { path: "/riwayat", label: "Riwayat", icon: "📋" },
   { path: "/anggota", label: "Anggota", icon: "👥" },
+  { path: "/profile", label: "Profile", icon: "👤" },
 ];
 
 export default function BottomNav() {
