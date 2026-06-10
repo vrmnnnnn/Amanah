@@ -3,7 +3,7 @@
 @import "shadcn/tailwind.css";
 
 /* ── Kindred Bloom Design System ── */
-/* Material You color tokens from PiggyPals / Stitch */
+/* Material You color tokens — Sakura theme */
 
 @theme inline {
   --font-heading: var(--font-sans);
