@@ -1,31 +1,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useFamily } from "@/lib/family-context";
+import { useCategories } from "@/lib/categories";
 import TopAppBar from "@/components/TopAppBar";
 import SpriteAvatar from "@/components/SpriteAvatar";
 import ProgressBar from "@/components/ProgressBar";
 import TransactionCard from "@/components/TransactionCard";
 
-const CAT_ICONS: Record<string, string> = {
-  makan: "restaurant",
-  transport: "directions_car",
-  belanja: "shopping_bag",
-  tagihan: "bolt",
-  gaji: "stars",
-  lainnya: "category",
-};
-
-const CAT_LABELS: Record<string, string> = {
-  makan: "Makan",
-  transport: "Transport",
-  belanja: "Belanja",
-  tagihan: "Tagihan",
-  gaji: "Gaji",
-  lainnya: "Lainnya",
-};
-
 export default function Home() {
   const { family, members } = useFamily();
+  const { getLabel, getIcon } = useCategories(family?.id);
   const [totalMasuk, setTotalMasuk] = useState(0);
   const [totalKeluar, setTotalKeluar] = useState(0);
   const [recentTx, setRecentTx] = useState<any[]>([]);
@@ -69,7 +53,7 @@ export default function Home() {
       setCatBreakdown(
         Object.entries(catMap)
           .sort(([, a], [, b]) => b - a)
-          .map(([cat, amt]) => ({ name: CAT_LABELS[cat] || cat, amount: amt }))
+          .map(([cat, amt]) => ({ name: getLabel(cat), amount: amt }))
       );
     }
   };
@@ -197,8 +181,8 @@ export default function Home() {
             {recentTx.map((tx: any) => (
               <TransactionCard
                 key={tx.id}
-                icon={CAT_ICONS[tx.category] || "receipt_long"}
-                label={CAT_LABELS[tx.category] || tx.category}
+                icon={getIcon(tx.category)}
+                label={getLabel(tx.category)}
                 note={tx.note}
                 amount={Number(tx.amount)}
                 type={tx.type}

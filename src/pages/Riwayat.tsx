@@ -1,34 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useFamily } from "@/lib/family-context";
+import { useCategories } from "@/lib/categories";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
 import TransactionCard from "@/components/TransactionCard";
 
-const CAT_ICONS: Record<string, string> = {
-  makan: "restaurant",
-  transport: "directions_car",
-  belanja: "shopping_bag",
-  tagihan: "bolt",
-  gaji: "stars",
-  bisnis: "storefront",
-  investasi: "finance",
-  lainnya: "category",
-};
-
-const CAT_LABELS: Record<string, string> = {
-  makan: "Makan",
-  transport: "Transport",
-  belanja: "Belanja",
-  tagihan: "Tagihan",
-  gaji: "Gaji",
-  bisnis: "Bisnis",
-  investasi: "Investasi",
-  lainnya: "Lainnya",
-};
-
 export default function Riwayat() {
   const { family, members } = useFamily();
+  const { getLabel, getIcon, getByType } = useCategories(family?.id);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
@@ -108,7 +88,7 @@ export default function Riwayat() {
         date,
         tx.type === "masuk" ? "Masuk" : "Keluar",
         tx.amount,
-        CAT_LABELS[tx.category] || tx.category,
+        getLabel(tx.category),
         tx.note || "",
         memberRole,
       ];
@@ -152,7 +132,7 @@ export default function Riwayat() {
     return transactions.filter((tx) => {
       if (search) {
         const s = search.toLowerCase();
-        const cat = CAT_LABELS[tx.category]?.toLowerCase() || tx.category?.toLowerCase() || "";
+        const cat = getLabel(tx.category).toLowerCase();
         const note = (tx.note || "").toLowerCase();
         const role = members.find((m) => m.id === tx.member_id)?.role?.toLowerCase() || "";
         if (!cat.includes(s) && !note.includes(s) && !role.includes(s)) return false;
@@ -255,7 +235,7 @@ export default function Riwayat() {
             >
               <option value="all">Semua Kategori</option>
               {allCats.map((c) => (
-                <option key={c} value={c}>{CAT_LABELS[c] || c}</option>
+                <option key={c} value={c}>{getLabel(c)}</option>
               ))}
             </select>
 
@@ -301,8 +281,8 @@ export default function Riwayat() {
                   {txs.map((tx) => (
                     <div key={tx.id} className="group relative">
                       <TransactionCard
-                        icon={CAT_ICONS[tx.category] || "receipt_long"}
-                        label={CAT_LABELS[tx.category] || tx.category}
+                        icon={getIcon(tx.category)}
+                        label={getLabel(tx.category)}
                         note={tx.note}
                         amount={Number(tx.amount)}
                         type={tx.type}
@@ -406,7 +386,7 @@ export default function Riwayat() {
                 className="w-full h-12 px-4 rounded-xl bg-surface-container border border-outline-variant text-sm font-medium text-on-surface outline-none focus:border-primary"
               >
                 {allCats.map((c) => (
-                  <option key={c} value={c}>{CAT_LABELS[c] || c}</option>
+                  <option key={c} value={c}>{getLabel(c)}</option>
                 ))}
               </select>
             </div>

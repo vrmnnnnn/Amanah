@@ -1,27 +1,31 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useFamily } from "@/lib/family-context";
+import { useCategories } from "@/lib/categories";
 import TopAppBar from "@/components/TopAppBar";
-
-const CAT_COLORS: Record<string, string> = {
-  gaji: "var(--tertiary-container)",
-  makan: "var(--primary-container)",
-  tagihan: "var(--secondary-container)",
-  transport: "var(--primary-fixed-dim)",
-  belanja: "var(--secondary-fixed-dim)",
-  lainnya: "var(--surface-container-high)",
-};
-
-const CAT_LABELS: Record<string, string> = {
-  gaji: "Gaji", makan: "Makan", transport: "Transport",
-  belanja: "Belanja", tagihan: "Tagihan", bisnis: "Bisnis",
-  investasi: "Investasi", lainnya: "Lainnya",
-};
 
 const DAYS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 
+const COLOR_PALETTE = [
+  "var(--primary-container)",
+  "var(--secondary-container)",
+  "var(--tertiary-container)",
+  "var(--primary-fixed-dim)",
+  "var(--secondary-fixed-dim)",
+  "var(--surface-container-high)",
+  "var(--surface-container-highest)",
+  "var(--outline-variant)",
+];
+
+function catColor(key: string): string {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
+  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
+}
+
 export default function Calendar() {
   const { family } = useFamily();
+  const { getLabel } = useCategories(family?.id);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -140,7 +144,7 @@ export default function Calendar() {
                         <div
                           key={cat}
                           className="w-1.5 h-1.5 rounded-full"
-                          style={{ background: CAT_COLORS[cat] || "var(--outline-variant)" }}
+                          style={{ background: catColor(cat) }}
                         />
                       ))}
                     </div>
@@ -176,15 +180,15 @@ export default function Calendar() {
                   >
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{ background: CAT_COLORS[tx.category] || "var(--surface-container)" }}
+                      style={{ background: catColor(tx.category) }}
                     >
                       <span className="text-xs font-bold text-on-surface">
-                        {CAT_LABELS[tx.category]?.[0] || "?"}
+                        {getLabel(tx.category)[0] || "?"}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-xs text-on-surface">
-                        {CAT_LABELS[tx.category] || tx.category}
+                        {getLabel(tx.category)}
                       </p>
                       {tx.note && (
                         <p className="text-[10px] text-on-surface-variant truncate">{tx.note}</p>

@@ -1,29 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useFamily } from "@/lib/family-context";
+import { useCategories } from "@/lib/categories";
 import TopAppBar from "@/components/TopAppBar";
-
-const CAT_ICONS: Record<string, string> = {
-  makan: "restaurant",
-  transport: "directions_car",
-  belanja: "shopping_bag",
-  tagihan: "bolt",
-  gaji: "stars",
-  bisnis: "storefront",
-  investasi: "finance",
-  lainnya: "category",
-};
-
-const CAT_LABELS: Record<string, string> = {
-  makan: "Makan",
-  transport: "Transport",
-  belanja: "Belanja",
-  tagihan: "Tagihan",
-  gaji: "Gaji",
-  bisnis: "Bisnis",
-  investasi: "Investasi",
-  lainnya: "Lainnya",
-};
 
 const PERIODS = [
   { key: "7d", label: "7H" },
@@ -33,6 +12,7 @@ const PERIODS = [
 
 export default function Stats() {
   const { family } = useFamily();
+  const { getLabel, getIcon } = useCategories(family?.id);
   const [period, setPeriod] = useState<string>("30d");
   const [totalMasuk, setTotalMasuk] = useState(0);
   const [totalKeluar, setTotalKeluar] = useState(0);
@@ -76,9 +56,9 @@ export default function Stats() {
       Object.entries(catMap)
         .sort(([, a], [, b]) => b - a)
         .map(([cat, amt]) => ({
-          name: CAT_LABELS[cat] || cat,
+          name: getLabel(cat),
           amount: amt,
-          icon: CAT_ICONS[cat] || "category",
+          icon: getIcon(cat),
         }))
     );
 

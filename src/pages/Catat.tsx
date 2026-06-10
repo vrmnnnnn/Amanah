@@ -2,10 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { authClient } from "@/lib/auth-client";
 import { useFamily } from "@/lib/family-context";
+import { useCategories } from "@/lib/categories";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
 import VoiceButton from "@/components/VoiceButton";
 import CategoryChip from "@/components/CategoryChip";
+import KeypadInput from "@/components/KeypadInput";
 
 declare global {
   interface Window {
@@ -14,36 +16,10 @@ declare global {
   }
 }
 
-const CAT_ICONS: Record<string, string> = {
-  gaji: "stars",
-  bisnis: "storefront",
-  investasi: "finance",
-  makan: "restaurant",
-  transport: "directions_car",
-  belanja: "shopping_bag",
-  tagihan: "bolt",
-  lainnya: "category",
-};
-
-const CAT_LABELS: Record<string, string> = {
-  gaji: "Gaji",
-  bisnis: "Bisnis",
-  investasi: "Investasi",
-  makan: "Makan",
-  transport: "Transport",
-  belanja: "Belanja",
-  tagihan: "Tagihan",
-  lainnya: "Lainnya",
-};
-
-const CATS_BY_TYPE: Record<string, string[]> = {
-  masuk: ["gaji", "bisnis", "investasi", "lainnya"],
-  keluar: ["makan", "transport", "belanja", "tagihan", "lainnya"],
-};
-
 export default function Catat() {
   const { data: session } = authClient.useSession();
   const { family, me, members } = useFamily();
+  const { getByType, getIcon, getLabel, all: allCategories } = useCategories(family?.id);
   const [type, setType] = useState<"masuk" | "keluar">("keluar");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -117,12 +93,11 @@ export default function Catat() {
       }
       setAmount(String(amt));
     }
-    const allCats = [...CATS_BY_TYPE.masuk, ...CATS_BY_TYPE.keluar];
-    for (const c of allCats) {
-      if (text.includes(c)) {
-        setCategory(c);
-        if (CATS_BY_TYPE.masuk.includes(c)) setType("masuk");
-        if (CATS_BY_TYPE.keluar.includes(c) && !CATS_BY_TYPE.masuk.includes(c)) setType("keluar");
+    for (const c of allCategories) {
+      if (text.includes(c.key)) {
+        setCategory(c.key);
+        if (c.type === "masuk") setType("masuk");
+        else if (c.type === "keluar") setType("keluar");
         break;
       }
     }
@@ -130,7 +105,7 @@ export default function Catat() {
       .replace(amountMatch?.[0] || "", "")
       .replace(/\b(masuk|keluar)\b/g, "")
       .trim();
-    if (afterAmount && !allCats.includes(afterAmount)) {
+    if (afterAmount && !allCategories.find((c) => c.key === afterAmount)) {
       setNote(afterAmount.charAt(0).toUpperCase() + afterAmount.slice(1));
     }
   };
@@ -165,10 +140,7 @@ export default function Catat() {
     }
   };
 
-  const rawAmount = amount;
-  const amountDisplay = rawAmount
-    ? Number(rawAmount).toLocaleString("id-ID")
-    : "";
+  const currentCats = getByType(type);
 
   return (
     <div className="min-h-dvh pb-32 bg-background">
@@ -204,40 +176,20 @@ export default function Catat() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* ── Amount ── */}
-          <div className="glass-card p-6 text-center space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-              Jumlah (Rp)
-            </label>
-            <div className="relative">
-              <span className="absolute left-1 top-1/2 -translate-y-1/2 text-2xl font-extrabold text-on-surface-variant/30">
-                Rp
+          {/* ── Amount + Keypad ── */}
+          <KeypadInput value={amount} onChange={setAmount} />
+
+          {/* AI sentiment preview */}
+          {amount && category && (
+            <div className="bg-primary-container/20 rounded-full px-4 py-1.5 inline-flex items-center gap-1.5 mx-auto">
+              <span className="text-xs">
+                {type === "masuk" ? "🎉" : "💸"}
               </span>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="0"
-                value={amountDisplay}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/[^0-9]/g, "");
-                  setAmount(raw);
-                }}
-                required
-                className="w-full bg-transparent text-center text-4xl font-extrabold text-on-surface outline-none border-none placeholder:text-on-surface-variant/20 py-2"
-              />
+              <span className="text-[11px] font-semibold text-on-primary-container/70">
+                {type === "masuk" ? "Pemasukan" : "Pengeluaran"} · {getLabel(category)}
+              </span>
             </div>
-            {/* AI sentiment preview */}
-            {rawAmount && category && (
-              <div className="bg-primary-container/20 rounded-full px-4 py-1.5 inline-flex items-center gap-1.5 mx-auto">
-                <span className="text-xs">
-                  {type === "masuk" ? "🎉" : "💸"}
-                </span>
-                <span className="text-[11px] font-semibold text-on-primary-container/70">
-                  {type === "masuk" ? "Pemasukan" : "Pengeluaran"} · {CAT_LABELS[category]}
-                </span>
-              </div>
-            )}
-          </div>
+          )}
 
           {/* ── Category Chips ── */}
           <div className="space-y-2">
@@ -245,13 +197,13 @@ export default function Catat() {
               Kategori
             </label>
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 snap-x">
-              {CATS_BY_TYPE[type].map((cat) => (
+              {currentCats.map((cat) => (
                 <CategoryChip
-                  key={cat}
-                  label={CAT_LABELS[cat]}
-                  icon={CAT_ICONS[cat]}
-                  selected={category === cat}
-                  onClick={() => setCategory(cat)}
+                  key={cat.key}
+                  label={cat.label}
+                  icon={cat.icon}
+                  selected={category === cat.key}
+                  onClick={() => setCategory(cat.key)}
                 />
               ))}
             </div>

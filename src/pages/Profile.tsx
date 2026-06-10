@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { authClient } from "@/lib/auth-client";
 import { useFamily } from "@/lib/family-context";
+import { useCategories } from "@/lib/categories";
+import type { Category } from "@/lib/categories";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
@@ -29,6 +31,7 @@ export default function Profile() {
   const [budget, setBudget] = useState("");
   const [savedBudget, setSavedBudget] = useState<number | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
 
   // Edit profile state
   const [editOpen, setEditOpen] = useState(false);
@@ -38,6 +41,12 @@ export default function Profile() {
   // Avatar upload state
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Categories
+  const { all: allCats, custom, addCategory, removeCategory, ICON_OPTIONS } = useCategories(family?.id);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatType, setNewCatType] = useState<"masuk" | "keluar">("keluar");
+  const [newCatIcon, setNewCatIcon] = useState("category");
 
   useEffect(() => {
     setMounted(true);
@@ -179,6 +188,20 @@ export default function Profile() {
     setBudget("");
     setBudgetOpen(false);
     toast.success(`Budget Rp ${val.toLocaleString("id-ID")} disimpan`);
+  };
+
+  const handleAddCategory = () => {
+    const name = newCatName.trim();
+    if (!name) { toast.error("Isi nama kategori"); return; }
+    const key = name.toLowerCase().replace(/\s+/g, "_");
+    if (allCats.find((c) => c.key === key)) {
+      toast.error("Kategori sudah ada");
+      return;
+    }
+    addCategory({ key, label: name, icon: newCatIcon, type: newCatType });
+    setNewCatName("");
+    setNewCatIcon("category");
+    toast.success(`Kategori "${name}" ditambahkan`);
   };
 
   const exportCSV = async () => {
@@ -435,6 +458,23 @@ export default function Profile() {
             </button>
           </GlassCard>
 
+          {/* Kelola Kategori */}
+          <GlassCard
+            className="p-4 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-all"
+            onClick={() => setCatOpen(true)}
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary-container/60 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-primary">category</span>
+            </div>
+            <div>
+              <p className="font-medium text-sm text-on-surface">Kelola Kategori</p>
+              <p className="text-xs text-on-surface-variant">
+                {custom.length} kategori kustom · {allCats.length} total
+              </p>
+            </div>
+            <span className="ml-auto material-symbols-outlined text-on-surface-variant/40">chevron_right</span>
+          </GlassCard>
+
           {/* Export */}
           <GlassCard
             className="p-4 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-all"
@@ -540,6 +580,131 @@ export default function Profile() {
             >
               Simpan
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Management Dialog */}
+      <Dialog open={catOpen} onOpenChange={setCatOpen}>
+        <DialogContent className="rounded-2xl p-6 gap-5 max-w-sm max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-on-surface">
+              Kelola Kategori
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Built-in categories */}
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant/60 mb-2">
+                Bawaan
+              </p>
+              <div className="space-y-1.5">
+                {allCats.filter(c => c.builtin).map((c) => (
+                  <div key={c.key} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-container/50">
+                    <span className="material-symbols-outlined text-base text-on-surface-variant">{c.icon}</span>
+                    <span className="text-sm font-medium text-on-surface">{c.label}</span>
+                    <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-outline-variant/20 text-on-surface-variant/60">
+                      {c.type === "both" ? "Masuk & Keluar" : c.type === "masuk" ? "Masuk" : "Keluar"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom categories */}
+            {custom.length > 0 && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant/60 mb-2">
+                  Kustom
+                </p>
+                <div className="space-y-1.5">
+                  {custom.map((c) => (
+                    <div key={c.key} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-primary-container/20">
+                      <span className="material-symbols-outlined text-base text-primary">{c.icon}</span>
+                      <span className="text-sm font-medium text-on-surface">{c.label}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary-container text-on-primary-container">
+                        {c.type === "masuk" ? "Masuk" : "Keluar"}
+                      </span>
+                      <button
+                        onClick={() => { removeCategory(c.key); toast.success(`"${c.label}" dihapus`); }}
+                        className="ml-auto w-7 h-7 rounded-full flex items-center justify-center text-destructive/60 hover:bg-destructive/10 hover:text-destructive transition-all"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add new */}
+            <div className="border-t border-outline-variant pt-4 space-y-3">
+              <p className="text-sm font-bold text-on-surface">Tambah Kategori Baru</p>
+
+              {/* Name */}
+              <Input
+                placeholder="Nama kategori (contoh: Fitness)"
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                className="h-11 rounded-xl bg-surface-container border-outline-variant text-sm"
+                onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+              />
+
+              {/* Type toggle */}
+              <div className="flex gap-1 bg-surface-container rounded-full p-1">
+                <button
+                  type="button"
+                  onClick={() => setNewCatType("keluar")}
+                  className={`flex-1 py-2 rounded-full text-xs font-semibold transition-all ${
+                    newCatType === "keluar" 
+                      ? "bg-error-container text-on-error-container"
+                      : "text-on-surface-variant/60"
+                  }`}
+                >
+                  Pengeluaran
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewCatType("masuk")}
+                  className={`flex-1 py-2 rounded-full text-xs font-semibold transition-all ${
+                    newCatType === "masuk"
+                      ? "bg-tertiary-container text-on-tertiary-container"
+                      : "text-on-surface-variant/60"
+                  }`}
+                >
+                  Pemasukan
+                </button>
+              </div>
+
+              {/* Icon picker */}
+              <div>
+                <p className="text-xs text-on-surface-variant/60 mb-2">Pilih Ikon</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ICON_OPTIONS.map((icon) => (
+                    <button
+                      key={icon}
+                      type="button"
+                      onClick={() => setNewCatIcon(icon)}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                        newCatIcon === icon
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-surface-container text-on-surface-variant hover:bg-primary-container/40"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-sm">{icon}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                onClick={handleAddCategory}
+              >
+                Tambah Kategori
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
