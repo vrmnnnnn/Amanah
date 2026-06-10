@@ -223,7 +223,7 @@ export default function Riwayat() {
         {showFilters && (
           <div className="animate-fade-in mt-2 p-3 card-layered flex flex-wrap gap-2">
             <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[120px]" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[120px]" style={{ background: "var(--bg)" }}>
                 <SelectValue placeholder="Semua bulan" />
               </SelectTrigger>
               <SelectContent>
@@ -235,7 +235,7 @@ export default function Riwayat() {
             </Select>
 
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[100px]" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[100px]" style={{ background: "var(--bg)" }}>
                 <SelectValue placeholder="Semua tipe" />
               </SelectTrigger>
               <SelectContent>
@@ -246,7 +246,7 @@ export default function Riwayat() {
             </Select>
 
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[110px]" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[110px]" style={{ background: "var(--bg)" }}>
                 <SelectValue placeholder="Semua kategori" />
               </SelectTrigger>
               <SelectContent>
@@ -412,7 +412,7 @@ export default function Riwayat() {
               <div className="space-y-1.5">
                 <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>Kategori</Label>
                 <Select value={editCategory} onValueChange={setEditCategory}>
-                  <SelectTrigger className="h-12 rounded-xl" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                  <SelectTrigger className="h-12 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -427,7 +427,7 @@ export default function Riwayat() {
                 <div className="space-y-1.5">
                   <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>Anggota</Label>
                   <Select value={editMemberId} onValueChange={setEditMemberId}>
-                    <SelectTrigger className="h-12 rounded-xl" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                    <SelectTrigger className="h-12 rounded-xl">
                       <SelectValue placeholder="Semua anggota" />
                     </SelectTrigger>
                     <SelectContent>

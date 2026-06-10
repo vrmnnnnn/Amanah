@@ -253,7 +253,6 @@ export default function Catat() {
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger
                 className="h-12 rounded-xl text-[15px]"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
               >
                 <SelectValue placeholder="Pilih kategori" />
               </SelectTrigger>
@@ -275,7 +274,6 @@ export default function Catat() {
             <Select value={memberId} onValueChange={setMemberId}>
               <SelectTrigger
                 className="h-12 rounded-xl text-[15px]"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
               >
                 <SelectValue placeholder="Pilih anggota" />
               </SelectTrigger>
