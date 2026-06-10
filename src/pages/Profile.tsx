@@ -9,24 +9,25 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { authClient } from "@/lib/auth-client";
 import { useFamily } from "@/lib/family-context";
 import { toast } from "sonner";
-import { LogOut, Mail, ShieldCheck, KeyRound, Moon, Sun, Coins, Download, Users } from "lucide-react";
+import TopAppBar from "@/components/TopAppBar";
+import GlassCard from "@/components/GlassCard";
 
 const BUDGET_KEY = "amanah-budget";
 
 export default function Profile() {
   const { data: session } = authClient.useSession();
-  const { family, me } = useFamily();
+  const { family, me, members } = useFamily();
   const navigate = useNavigate();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budget, setBudget] = useState("");
   const [savedBudget, setSavedBudget] = useState<number | null>(null);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -88,92 +89,98 @@ export default function Profile() {
     toast.success("CSV terdownload!");
   };
 
-  return (
-    <div className="min-h-dvh pb-24" style={{ background: "var(--bg)" }}>
-      {/* Navy header */}
-      <div className="bg-[var(--navy)] text-[#faf9f7] px-5 pt-14 pb-10 rounded-b-[2rem]">
-        <h1 className="text-xl font-bold tracking-heading text-center">
-          Profil
-        </h1>
-        <div className="flex justify-center mt-5">
-          <div className="size-16 rounded-full bg-white/[0.10] flex items-center justify-center text-2xl font-bold text-[#faf9f7]/80">
-            {(me?.role || session?.user?.email)?.[0]?.toUpperCase() || "?"}
-          </div>
-        </div>
-        <p className="text-center text-sm text-[var(--navy-light)] mt-2">
-          {me?.role || "Anggota"}
-        </p>
-      </div>
+  const displayName = me?.role || session?.user?.user_metadata?.name || session?.user?.email?.split("@")[0] || "Kamu";
+  const userEmail = session?.user?.email ?? "—";
+  const provider = (session?.user?.app_metadata?.provider as string) || "email";
 
-      {/* Info cards */}
-      <div className="px-5 mt-6 space-y-2.5">
-        {/* Family */}
-        {family && (
-          <div className="card-layered p-4">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--surface-hover)" }}>
-                <Users size={18} style={{ color: "var(--navy)" }} />
+  return (
+    <div className="min-h-dvh pb-32 bg-background">
+      <TopAppBar title="Profil" showBack />
+
+      <main className="px-5 md:px-10 max-w-xl mx-auto pt-4 space-y-4">
+        {/* Profile Header */}
+        <GlassCard className="p-6">
+          <div className="flex flex-col items-center text-center gap-3">
+            {/* Avatar */}
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full border-4 border-primary-container flex items-center justify-center text-3xl font-bold bg-gradient-to-br from-primary-container to-secondary-container text-on-primary-container overflow-hidden">
+                <img
+                  alt=""
+                  className="w-full h-full object-cover"
+                  src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${userEmail}&backgroundColor=ffd1dc`}
+                />
               </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
-                  Keluarga
-                </p>
-                <p className="font-medium text-sm truncate" style={{ color: "var(--text)" }}>
-                  {family.name}
-                </p>
+              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs border-2 border-white shadow-sm">
+                <span className="material-symbols-outlined text-sm">edit</span>
               </div>
             </div>
-          </div>
-        )}
 
-        <div className="card-layered p-4">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--surface-hover)" }}>
-              <Mail size={18} style={{ color: "var(--text)" }} className="opacity-50" />
+            {/* Name & Role */}
+            <div>
+              <h2 className="text-lg font-bold text-on-surface">{displayName}</h2>
+              <p className="text-sm text-on-surface-variant mt-0.5">
+                {me?.role || "Anggota"}
+              </p>
+            </div>
+
+            {/* Family badge */}
+            {family && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-tertiary-container text-on-tertiary-container text-xs font-semibold">
+                <span className="material-symbols-outlined text-sm">group</span>
+                {family.name} · {members.length} anggota
+              </div>
+            )}
+          </div>
+        </GlassCard>
+
+        {/* Information Cards */}
+        <div className="space-y-2">
+          {/* Email */}
+          <GlassCard className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-tertiary-container/60 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-on-tertiary-container">mail</span>
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
+              <p className="text-xs uppercase tracking-wider font-semibold text-on-surface-variant/60">
                 Email
               </p>
-              <p className="font-medium text-sm truncate" style={{ color: "var(--text)" }}>
-                {session?.user?.email ?? "—"}
-              </p>
+              <p className="font-medium text-sm text-on-surface truncate">{userEmail}</p>
             </div>
-          </div>
-        </div>
+          </GlassCard>
 
-        <div className="card-layered p-4">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--surface-hover)" }}>
-              <ShieldCheck size={18} style={{ color: "var(--text)" }} className="opacity-50" />
+          {/* Auth Provider */}
+          <GlassCard className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-tertiary-container/60 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-on-tertiary-container">shield</span>
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
-                Provider
+              <p className="text-xs uppercase tracking-wider font-semibold text-on-surface-variant/60">
+                Login via
               </p>
-              <p className="font-medium text-sm capitalize" style={{ color: "var(--text)" }}>
-                {session?.user?.app_metadata?.provider ?? "email"}
-              </p>
+              <p className="font-medium text-sm text-on-surface capitalize">{provider}</p>
             </div>
-          </div>
+          </GlassCard>
         </div>
 
-        {/* Theme toggle */}
-        <div className="card-layered p-4">
-          <div className="flex items-center justify-between gap-3">
+        {/* Settings */}
+        <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-wider px-1 pt-2">
+          Pengaturan
+        </h3>
+
+        <div className="space-y-2">
+          {/* Theme */}
+          <GlassCard className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--surface-hover)" }}>
+              <div className="w-10 h-10 rounded-xl bg-primary-container/60 flex items-center justify-center shrink-0">
                 {mounted && resolvedTheme === "dark" ? (
-                  <Moon size={18} style={{ color: "var(--gold)" }} />
+                  <span className="material-symbols-outlined text-primary">dark_mode</span>
                 ) : (
-                  <Sun size={18} style={{ color: "var(--gold)" }} />
+                  <span className="material-symbols-outlined text-amber-500">light_mode</span>
                 )}
               </div>
               <div>
-                <p className="font-medium text-sm" style={{ color: "var(--text)" }}>
-                  Tampilan
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <p className="font-medium text-sm text-on-surface">Tampilan</p>
+                <p className="text-xs text-on-surface-variant">
                   {mounted ? (resolvedTheme === "dark" ? "Gelap" : "Terang") : "..."}
                 </p>
               </div>
@@ -181,112 +188,144 @@ export default function Profile() {
             {mounted && (
               <button
                 onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                className={`relative w-12 h-7 rounded-full transition-colors duration-300 ${
-                  resolvedTheme === "dark" ? "bg-[var(--navy)]" : "bg-[var(--border)]"
-                }`}
+                className="relative w-12 h-7 rounded-full transition-all duration-300 bg-surface-container-highest border border-outline-variant"
               >
                 <span
-                  className={`absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-transform duration-300 flex items-center justify-center ${
-                    resolvedTheme === "dark" ? "translate-x-[22px]" : "translate-x-0.5"
-                  }`}
+                  className="absolute top-0.5 size-6 rounded-full bg-primary shadow-sm transition-transform duration-300 flex items-center justify-center"
+                  style={{
+                    transform: resolvedTheme === "dark" ? "translateX(22px)" : "translateX(0.5px)",
+                  }}
                 >
                   {resolvedTheme === "dark" ? (
-                    <Moon size={12} className="text-[var(--navy)]" />
+                    <span className="material-symbols-outlined text-sm text-primary-foreground">dark_mode</span>
                   ) : (
-                    <Sun size={12} className="text-[var(--gold)]" />
+                    <span className="material-symbols-outlined text-sm text-primary-foreground">light_mode</span>
                   )}
                 </span>
               </button>
             )}
-          </div>
-        </div>
+          </GlassCard>
 
-        {/* Budget */}
-        <div className="card-layered p-4">
-          <div className="flex items-center justify-between gap-3">
+          {/* Budget */}
+          <GlassCard className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--surface-hover)" }}>
-                <Coins size={18} style={{ color: "var(--gold)" }} />
+              <div className="w-10 h-10 rounded-xl bg-tertiary-container/60 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-amber-600">savings</span>
               </div>
               <div>
-                <p className="font-medium text-sm" style={{ color: "var(--text)" }}>
-                  Budget Bulanan
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <p className="font-medium text-sm text-on-surface">Budget Bulanan</p>
+                <p className="text-xs text-on-surface-variant">
                   {savedBudget ? `Rp ${savedBudget.toLocaleString("id-ID")}` : "Belum diset"}
                 </p>
               </div>
             </div>
-            <Dialog open={budgetOpen} onOpenChange={setBudgetOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs">
-                  {savedBudget ? "Ubah" : "Atur"}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="rounded-2xl p-6 gap-5">
-                <DialogHeader>
-                  <DialogTitle className="text-lg font-bold tracking-heading" style={{ color: "var(--text)" }}>
-                    Atur Budget Bulanan
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>
-                      Maksimal pengeluaran per bulan
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold" style={{ color: "var(--text-muted)" }}>
-                        Rp
-                      </span>
-                      <Input
-                        type="number"
-                        placeholder={savedBudget ? String(savedBudget) : "5.000.000"}
-                        value={budget}
-                        onChange={(e) => setBudget(e.target.value)}
-                        className="h-12 pl-10 rounded-xl text-lg font-semibold"
-                        style={{ borderColor: "var(--border)", background: "var(--bg)" }}
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    className="w-full h-11 rounded-xl bg-[var(--navy)] hover:bg-[var(--navy)]/90 text-[15px] font-semibold tracking-tight"
-                    onClick={saveBudget}
-                  >
-                    Simpan
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+            <button
+              onClick={() => setBudgetOpen(true)}
+              className="h-9 px-4 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:scale-105 transition-all"
+            >
+              {savedBudget ? "Ubah" : "Atur"}
+            </button>
+          </GlassCard>
 
-        {/* Export */}
-        <div className="card-layered p-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={exportCSV}>
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--surface-hover)" }}>
-              <Download size={18} style={{ color: "var(--green)" }} />
+          {/* Export */}
+          <GlassCard
+            className="p-4 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-all"
+            onClick={exportCSV}
+          >
+            <div className="w-10 h-10 rounded-xl bg-secondary-container/60 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-secondary">download</span>
             </div>
             <div>
-              <p className="font-medium text-sm" style={{ color: "var(--text)" }}>
-                Export CSV
-              </p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Download riwayat transaksi
-              </p>
+              <p className="font-medium text-sm text-on-surface">Export CSV</p>
+              <p className="text-xs text-on-surface-variant">Download riwayat transaksi</p>
             </div>
-          </div>
+            <span className="ml-auto material-symbols-outlined text-on-surface-variant/40">chevron_right</span>
+          </GlassCard>
         </div>
 
-        {/* Logout */}
-        <Button
-          variant="destructive"
-          className="w-full mt-4 h-12 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border-0 text-[15px] font-semibold tracking-tight dark:bg-red-950 dark:hover:bg-red-900 dark:text-red-400"
-          onClick={handleLogout}
+        {/* Danger Zone */}
+        <h3 className="text-sm font-bold text-destructive uppercase tracking-wider px-1 pt-2">
+          Akun
+        </h3>
+
+        <button
+          onClick={() => setLogoutOpen(true)}
+          className="w-full p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive font-semibold text-sm flex items-center justify-center gap-2 hover:bg-destructive/20 transition-colors"
         >
-          <LogOut size={17} className="mr-2" />
-          Keluar
-        </Button>
-      </div>
+          <span className="material-symbols-outlined">logout</span>
+          Keluar dari Akun
+        </button>
+
+        <p className="text-center text-xs text-on-surface-variant/40 pb-4">
+          Amanah · Kindred Bloom
+        </p>
+      </main>
+
+      {/* Budget Dialog */}
+      <Dialog open={budgetOpen} onOpenChange={setBudgetOpen}>
+        <DialogContent className="rounded-2xl p-6 gap-5 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-on-surface">
+              Atur Budget Bulanan
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-on-surface">
+                Maksimal pengeluaran per bulan
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-on-surface-variant/60">
+                  Rp
+                </span>
+                <Input
+                  type="number"
+                  placeholder={savedBudget ? String(savedBudget) : "5.000.000"}
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  className="h-12 pl-10 rounded-xl text-lg font-semibold bg-surface-container border-outline-variant"
+                  onKeyDown={(e) => e.key === "Enter" && saveBudget()}
+                />
+              </div>
+            </div>
+            <Button
+              className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+              onClick={saveBudget}
+            >
+              Simpan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Logout Confirmation */}
+      <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <DialogContent className="rounded-2xl p-6 gap-5 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-on-surface">
+              Keluar dari Akun?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-on-surface-variant">
+            Kamu akan keluar dari akun ini dan perlu login kembali.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 h-11 rounded-full border-outline-variant"
+              onClick={() => setLogoutOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              className="flex-1 h-11 rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold"
+              onClick={handleLogout}
+            >
+              Keluar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
