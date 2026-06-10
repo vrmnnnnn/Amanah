@@ -74,6 +74,41 @@ export default function Profile() {
     }
   };
 
+  /** Resize image client-side to target max KB */
+  const resizeImage = (file: File, maxKB: number): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        // Start with 400x400 max dimensions
+        let w = img.width;
+        let h = img.height;
+        const MAX_DIM = 400;
+        if (w > MAX_DIM || h > MAX_DIM) {
+          if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+          else { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, w, h);
+
+        // Try decreasing quality until < maxKB
+        const tryQuality = (q: number) => {
+          canvas.toBlob((blob) => {
+            if (!blob) return reject(new Error("Gagal resize gambar"));
+            if (blob.size <= maxKB * 1024 || q <= 0.2) return resolve(blob);
+            tryQuality(q - 0.1);
+          }, "image/jpeg", q);
+        };
+        tryQuality(0.85);
+      };
+      img.onerror = () => reject(new Error("Gagal membaca gambar"));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !session?.user) return;
@@ -92,13 +127,14 @@ export default function Profile() {
 
     setUploading(true);
     try {
+      // Resize to <300KB
+      const resized = await resizeImage(file, 300);
       const userId = session.user.id;
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${userId}/avatar.${ext}`;
+      const path = `${userId}/avatar.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(path, file, { upsert: true });
+        .upload(path, resized, { upsert: true, contentType: "image/jpeg" });
 
       if (uploadError) throw uploadError;
 
