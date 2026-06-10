@@ -9,13 +9,13 @@ interface Message {
   content: string;
 }
 
-const PIGGY_GREETING = "Halo! Aku Piggy AI, asisten keuangan keluargamu 🐷💖. Tanya apa aja tentang keuangan — budget, tips hemat, rekomendasi, atau cuma iseng aja!";
+const PIGGY_GREETING = "Halo! Aku Piggy AI, asisten keuangan keluargamu 🌸💖. Tanya apa aja tentang keuangan — budget, tips hemat, rekomendasi, atau cuma iseng aja!";
 
 const PIGGY_RESPONSES: Record<string, string> = {
-  hemat: "Tips hemat ala Piggy 🐷💡:\n\n1. \u2022 Catat setiap pengeluaran — seremeh apapun! Sadar itu langkah pertama.\n2. \u2022 Pakai aturan 50-30-20: 50% kebutuhan, 30% keinginan, 20% tabungan.\n3. \u2022 Masak di rumah — hemat 50-70% dibanding makan di luar!\n4. \u2022 Bandingkan harga sebelum belanja online.\n5. \u2022 Tunda pembelian impulsif 24 jam — seringkali kamu lupa setelahnya!",
+  hemat: "Tips hemat ala Piggy 🌸💡:\n\n1. \u2022 Catat setiap pengeluaran — seremeh apapun! Sadar itu langkah pertama.\n2. \u2022 Pakai aturan 50-30-20: 50% kebutuhan, 30% keinginan, 20% tabungan.\n3. \u2022 Masak di rumah — hemat 50-70% dibanding makan di luar!\n4. \u2022 Bandingkan harga sebelum belanja online.\n5. \u2022 Tunda pembelian impulsif 24 jam — seringkali kamu lupa setelahnya!",
   budget: "Budget bulanan yang sehat ala Piggy 💖:\n\n\u2022 Makan & minum: 30-40%\n\u2022 Transport: 10-15%\n\u2022 Tagihan & sewa: 25-35%\n\u2022 Tabungan: minimal 15-20%\n\u2022 Hiburan & lainnya: 10-15%\n\nPastiin tabungan dulu ya, jangan sisa! 😤",
-  investasi: "Piggy bilang: investasi itu penting! Tapi mulai dari yang simpel dulu:\n\n1. \u2022 Dana darurat 3-6x pengeluaran bulanan di rekening terpisah.\n2. \u2022 Reksadana pasar uang — aman, likuid, return 4-6%.\n3. \u2022 Emas — hedge inflasi klasik.\n4. \u2022 SBN (Surat Berharga Negara) — dijamin pemerintah.\n\nMulai dari nominal kecil aja, yang penting KONSISTEN! 🐷✨",
-  default: "Hmm, Piggy belum ngerti nih... coba tanya soal tips hemat, cara budgeting, atau investasi yuk! Atau curhat aja, Piggy dengerin kok 💖🐷",
+  investasi: "Piggy bilang: investasi itu penting! Tapi mulai dari yang simpel dulu:\n\n1. \u2022 Dana darurat 3-6x pengeluaran bulanan di rekening terpisah.\n2. \u2022 Reksadana pasar uang — aman, likuid, return 4-6%.\n3. \u2022 Emas — hedge inflasi klasik.\n4. \u2022 SBN (Surat Berharga Negara) — dijamin pemerintah.\n\nMulai dari nominal kecil aja, yang penting KONSISTEN! 🌸✨",
+  default: "Hmm, Piggy belum ngerti nih... coba tanya soal tips hemat, cara budgeting, atau investasi yuk! Atau curhat aja, Piggy dengerin kok 💖🌸",
 };
 
 export default function AIChat() {
@@ -48,7 +48,7 @@ export default function AIChat() {
       if (lower.includes("hemat") || lower.includes("tips")) reply = PIGGY_RESPONSES.hemat;
       else if (lower.includes("budget") || lower.includes("anggar")) reply = PIGGY_RESPONSES.budget;
       else if (lower.includes("invest") || lower.includes("saham") || lower.includes("emas")) reply = PIGGY_RESPONSES.investasi;
-      else if (lower.includes("hai") || lower.includes("halo") || lower.includes("piggy")) reply = "Hai juga! 🐷💖 Ada yang bisa Piggy bantu soal keuangan hari ini?";
+      else if (lower.includes("hai") || lower.includes("halo") || lower.includes("piggy")) reply = "Hai juga! 🌸💖 Ada yang bisa Piggy bantu soal keuangan hari ini?";
 
       setMessages((prev) => [
         ...prev,
@@ -68,7 +68,7 @@ export default function AIChat() {
           {/* Chat header */}
           <div className="bg-gradient-to-r from-primary-container to-secondary-container p-4 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-white/60 flex items-center justify-center text-2xl border-2 border-white">
-              🐷
+              🌸
             </div>
             <div>
               <h3 className="font-bold text-sm text-on-primary-container">Piggy AI</h3>
@@ -85,7 +85,7 @@ export default function AIChat() {
               >
                 {msg.role === "assistant" && (
                   <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center shrink-0 text-sm border border-primary-fixed-dim">
-                    🐷
+                    🌸
                   </div>
                 )}
                 <div
@@ -107,7 +107,7 @@ export default function AIChat() {
             {typing && (
               <div className="flex gap-2">
                 <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center shrink-0 text-sm border border-primary-fixed-dim">
-                  🐷
+                  🌸
                 </div>
                 <div className="bg-surface-container rounded-lg rounded-bl-none px-4 py-3 flex gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-primary-container animate-typing-bounce" style={{ animationDelay: "0s" }} />
