@@ -49,7 +49,10 @@ export default function Catat() {
   // Voice input
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      recognitionRef.current = null;
+      return;
+    }
 
     const recognition = new SpeechRecognition();
     recognition.lang = "id-ID";
@@ -61,15 +64,43 @@ export default function Catat() {
       parseVoiceInput(transcript);
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: any) => {
       setListening(false);
-      toast.error("Gagal mendengarkan. Coba lagi.");
+      const msg =
+        event.error === "not-allowed"
+          ? "Mikrofon tidak diizinkan. Buka izin mic di pengaturan browser."
+          : event.error === "no-speech"
+          ? "Tidak ada suara terdeteksi."
+          : `Gagal mendengarkan (${event.error}). Coba lagi.`;
+      toast.error(msg);
     };
 
     recognition.onend = () => setListening(false);
     recognitionRef.current = recognition;
+
+    return () => {
+      try { recognition.abort(); } catch {}
+    };
   }, []);
 
+  const toggleMic = () => {
+    const rec = recognitionRef.current;
+    if (!rec) {
+      toast.error("Browser kamu tidak mendukung input suara. Gunakan Chrome atau Edge.");
+      return;
+    }
+    if (listening) {
+      rec.stop();
+      return;
+    }
+    try {
+      rec.start();
+      setListening(true);
+    } catch (err: any) {
+      toast.error(`Gagal mulai mendengarkan: ${err.message || "coba lagi"}`);
+      setListening(false);
+    }
+  };
   const parseVoiceInput = (text: string) => {
     // Patterns: "keluar 50000 makan", "masuk 100000 gaji"
     const isMasuk = text.includes("masuk");
@@ -104,15 +135,6 @@ export default function Catat() {
     const afterAmount = text.replace(amountMatch?.[0] || "", "").replace(/\b(masuk|keluar)\b/g, "").trim();
     if (afterAmount && !cats.includes(afterAmount)) {
       setNote(afterAmount.charAt(0).toUpperCase() + afterAmount.slice(1));
-    }
-  };
-
-  const toggleMic = () => {
-    if (listening) {
-      recognitionRef.current?.stop();
-    } else {
-      setListening(true);
-      recognitionRef.current?.start();
     }
   };
 
