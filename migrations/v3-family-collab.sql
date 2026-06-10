@@ -60,8 +60,14 @@ CREATE POLICY "Users can create families"
   TO authenticated
   WITH CHECK (auth.uid() = created_by);
 
--- User bisa lihat family dia sendiri (via family_members join)
-CREATE POLICY "Users can view own family"
+-- Creator selalu bisa lihat family sendiri (bahkan sebelum jadi member)
+CREATE POLICY "Creator can view own family"
+  ON public.families FOR SELECT
+  TO authenticated
+  USING (created_by = auth.uid());
+
+-- Member bisa lihat family lewat family_members
+CREATE POLICY "Members can view their family"
   ON public.families FOR SELECT
   TO authenticated
   USING (
