@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import { useEffect, useState } from "react";
-import type { Session, User, Provider } from "@supabase/supabase-js";
+import type { Session, Provider } from "@supabase/supabase-js";
 
 /**
  * Supabase Auth adapter — preserves the same API shape as Better Auth's
@@ -58,14 +58,12 @@ export const authClient = {
   },
   useSession: () => {
     const [session, setSession] = useState<Session | null>(null);
-    const [user, setUser] = useState<User | null>(null);
     const [isPending, setIsPending] = useState(true);
 
     useEffect(() => {
       // Initial fetch
       supabase.auth.getSession().then(({ data }) => {
         setSession(data.session);
-        setUser(data.session?.user ?? null);
         setIsPending(false);
       });
 
@@ -74,14 +72,13 @@ export const authClient = {
         data: { subscription },
       } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
         setIsPending(false);
       });
 
       return () => subscription.unsubscribe();
     }, []);
 
-    return { data: { session, user } as any, isPending };
+    return { data: session, isPending };
   },
   getSession: async () => {
     const { data } = await supabase.auth.getSession();
