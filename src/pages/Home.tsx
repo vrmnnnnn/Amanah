@@ -1,252 +1,247 @@
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { useFamily } from "@/lib/family-context";
-import { ArrowDownToLine, ArrowUpFromLine, Users, AlertTriangle } from "lucide-react";
+import TopAppBar from "@/components/TopAppBar";
+import SpriteAvatar from "@/components/SpriteAvatar";
+import ProgressBar from "@/components/ProgressBar";
+import TransactionCard from "@/components/TransactionCard";
 
-const BUDGET_KEY = "amanah-budget";
-const CHART_COLORS = ["#0d9488", "#ef4444", "#f59e0b", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+const CAT_ICONS: Record<string, string> = {
+  makan: "restaurant",
+  transport: "directions_car",
+  belanja: "shopping_bag",
+  tagihan: "bolt",
+  gaji: "stars",
+  lainnya: "category",
+};
+
+const CAT_LABELS: Record<string, string> = {
+  makan: "Makan",
+  transport: "Transport",
+  belanja: "Belanja",
+  tagihan: "Tagihan",
+  gaji: "Gaji",
+  lainnya: "Lainnya",
+};
 
 export default function Home() {
-  const { family, me, members } = useFamily();
+  const { family, members } = useFamily();
   const [totalMasuk, setTotalMasuk] = useState(0);
   const [totalKeluar, setTotalKeluar] = useState(0);
-  const [budget, setBudget] = useState<number | null>(null);
-  const [catByMonth, setCatByMonth] = useState<{ name: string; amount: number; color: string }[]>([]);
+  const [recentTx, setRecentTx] = useState<any[]>([]);
+  const [catBreakdown, setCatBreakdown] = useState<{ name: string; amount: number }[]>([]);
 
   useEffect(() => {
     if (!family) return;
-    loadTransactions();
-    const stored = localStorage.getItem(BUDGET_KEY);
-    if (stored) setBudget(Number(stored));
+    loadData();
   }, [family]);
 
-  const loadTransactions = async () => {
+  const loadData = async () => {
     if (!family) return;
 
     const { data: t } = await supabase
       .from("transactions")
       .select("*")
-      .eq("family_id", family.id);
+      .eq("family_id", family.id)
+      .order("created_at", { ascending: false });
 
     if (t) {
-      setTotalMasuk(
-        t.filter((tx: any) => tx.type === "masuk").reduce((a: number, tx: any) => a + Number(tx.amount), 0)
-      );
-      const keluarTotal = t
-        .filter((tx: any) => tx.type === "keluar")
-        .reduce((a: number, tx: any) => a + Number(tx.amount), 0);
-      setTotalKeluar(keluarTotal);
+      const masuk = t.filter((tx: any) => tx.type === "masuk");
+      const keluar = t.filter((tx: any) => tx.type === "keluar");
 
-      // Current month breakdown
+      setTotalMasuk(masuk.reduce((a: number, tx: any) => a + Number(tx.amount), 0));
+      setTotalKeluar(keluar.reduce((a: number, tx: any) => a + Number(tx.amount), 0));
+      setRecentTx(t.slice(0, 4));
+
+      // Category breakdown this month
       const now = new Date();
       const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       const catMap: Record<string, number> = {};
-      t.filter((tx: any) => {
-        if (tx.type !== "keluar") return false;
-        const d = new Date(tx.created_at);
-        const txMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        return txMonth === thisMonth;
-      }).forEach((tx: any) => {
-        catMap[tx.category] = (catMap[tx.category] || 0) + Number(tx.amount);
-      });
+      keluar
+        .filter((tx: any) => {
+          const d = new Date(tx.created_at);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` === thisMonth;
+        })
+        .forEach((tx: any) => {
+          catMap[tx.category] = (catMap[tx.category] || 0) + Number(tx.amount);
+        });
 
-      const labels: Record<string, string> = {
-        makan: "Makan", transport: "Transport", belanja: "Belanja",
-        tagihan: "Tagihan", gaji: "Gaji", lainnya: "Lainnya",
-      };
-      const entries = Object.entries(catMap)
-        .sort(([, a], [, b]) => b - a)
-        .map(([cat, amt], i) => ({
-          name: labels[cat] || cat,
-          amount: amt,
-          color: CHART_COLORS[i % CHART_COLORS.length],
-        }));
-      setCatByMonth(entries);
+      setCatBreakdown(
+        Object.entries(catMap)
+          .sort(([, a], [, b]) => b - a)
+          .map(([cat, amt]) => ({ name: CAT_LABELS[cat] || cat, amount: amt }))
+      );
     }
   };
 
   const saldo = totalMasuk - totalKeluar;
-  const budgetPercent = budget && budget > 0 ? Math.min((totalKeluar / budget) * 100, 100) : 0;
-  const budgetWarning = budget && totalKeluar > budget;
-
-  // Donut chart data
-  const totalChart = catByMonth.reduce((s, c) => s + c.amount, 0);
-  let cumulative = 0;
-  const slices = catByMonth.map((c) => {
-    const start = cumulative;
-    cumulative += c.amount;
-    const end = cumulative;
-    return { ...c, start, end };
-  });
-
-  // Get member name by user_id
-  const memberName = (user_id: string) => {
-    const m = members.find((m) => m.user_id === user_id);
-    return m?.role || "Anggota";
-  };
+  const sisa = totalMasuk - totalKeluar;
 
   return (
-    <div className="min-h-dvh pb-24" style={{ background: "var(--bg)" }}>
-      {/* Header */}
-      <div className="bg-[var(--navy)] text-[#faf9f7] px-5 pt-14 pb-10 rounded-b-[2rem]">
-        <h1 className="text-center text-lg font-semibold tracking-tight opacity-80">
-          {family?.name || "Amanah"}
-        </h1>
-        <div className="mt-6 text-center">
-          <p className="text-[13px] font-medium uppercase tracking-wider" style={{ color: "var(--navy-light)" }}>
-            Saldo Keluarga
-          </p>
-          <p className="text-[2.75rem] font-bold mt-1 tracking-heading leading-none">
-            Rp {saldo.toLocaleString("id-ID")}
-          </p>
-        </div>
+    <div className="min-h-dvh pb-32" style={{ background: "var(--background)" }}>
+      <TopAppBar />
 
-        {/* Summary pills */}
-        <div className="flex justify-center gap-3 mt-5">
-          <div className="flex items-center gap-1.5 bg-white/[0.08] rounded-full px-4 py-1.5 text-[13px]">
-            <ArrowDownToLine size={14} className="text-[var(--green)]" />
-            <span className="text-[var(--green)] font-semibold">
+      <main className="px-5 md:px-10 max-w-4xl mx-auto space-y-6 pt-4">
+        {/* ── Total Balance Card ── */}
+        <section className="bg-gradient-to-br from-primary-container to-primary-fixed-dim rounded-xl p-6 shadow-[0_10px_30px_rgba(255,209,220,0.4)] relative overflow-hidden text-on-primary-container">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-20 rounded-full -mr-10 -mt-10 blur-xl" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-secondary-container opacity-40 rounded-full -ml-8 -mb-8 blur-lg" />
+          <div className="relative z-10 flex flex-col items-center text-center space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+              Saldo Keluarga
+            </span>
+            <h2 className="text-[2.5rem] font-extrabold text-on-primary-fixed leading-none tracking-tight">
+              Rp {saldo.toLocaleString("id-ID")}
+            </h2>
+            <div className="bg-white/30 backdrop-blur-md rounded-full px-4 py-1.5">
+              <p className="text-xs font-semibold">
+                Sisa: Rp {sisa.toLocaleString("id-ID")}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Bento Grid Stats ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_15px_rgba(255,209,220,0.15)] border border-outline-variant/20">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-full bg-tertiary-container flex items-center justify-center">
+                <span className="material-symbols-outlined text-base text-on-tertiary-container">trending_down</span>
+              </div>
+              <span className="text-xs font-semibold text-on-surface-variant">Pemasukan</span>
+            </div>
+            <p className="text-lg font-extrabold text-tertiary">
               +Rp {totalMasuk.toLocaleString("id-ID")}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-white/[0.08] rounded-full px-4 py-1.5 text-[13px]">
-            <ArrowUpFromLine size={14} className="text-red-400" />
-            <span className="text-red-400 font-semibold">
-              -Rp {totalKeluar.toLocaleString("id-ID")}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-4 mt-6 space-y-5">
-        {/* Budget warning */}
-        {budgetWarning && (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 animate-fade-in">
-            <AlertTriangle size={16} className="text-red-500 shrink-0" />
-            <p className="text-[13px] font-medium text-red-600 dark:text-red-400">
-              Pengeluaran melebihi budget! Rp {totalKeluar.toLocaleString("id-ID")} / Rp {budget!.toLocaleString("id-ID")}
             </p>
           </div>
-        )}
 
-        {/* Budget bar */}
-        {budget && budget > 0 && !budgetWarning && (
-          <div className="card-layered p-4 animate-fade-in">
-            <div className="flex justify-between items-center mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                Budget Bulanan
-              </p>
-              <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Rp {totalKeluar.toLocaleString("id-ID")} / Rp {budget.toLocaleString("id-ID")}
-              </p>
+          <div className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_15px_rgba(255,209,220,0.15)] border border-outline-variant/20">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-full bg-error-container flex items-center justify-center">
+                <span className="material-symbols-outlined text-base text-on-error-container">trending_up</span>
+              </div>
+              <span className="text-xs font-semibold text-on-surface-variant">Pengeluaran</span>
             </div>
-            <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-hover)" }}>
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${budgetPercent}%`,
-                  background: budgetPercent > 80 ? "#ef4444" : budgetPercent > 50 ? "#f59e0b" : "var(--green)",
-                }}
-              />
-            </div>
+            <p className="text-lg font-extrabold text-error">
+              -Rp {totalKeluar.toLocaleString("id-ID")}
+            </p>
           </div>
-        )}
+        </div>
 
-        {/* Chart — donut */}
-        {catByMonth.length > 0 && totalChart > 0 && (
-          <div className="card-layered p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
-              Pengeluaran Bulan Ini
-            </h2>
-            <div className="flex items-center gap-4">
-              <svg viewBox="0 0 100 100" className="size-24 shrink-0 -rotate-90">
-                {slices.map((s, i) => {
-                  const startAngle = (s.start / totalChart) * 360;
-                  const endAngle = (s.end / totalChart) * 360;
-                  const r = 40;
-                  const cx = 50, cy = 50;
-                  const x1 = cx + r * Math.cos((startAngle * Math.PI) / 180);
-                  const y1 = cy + r * Math.sin((startAngle * Math.PI) / 180);
-                  const x2 = cx + r * Math.cos((endAngle * Math.PI) / 180);
-                  const y2 = cy + r * Math.sin((endAngle * Math.PI) / 180);
-                  const large = endAngle - startAngle > 180 ? 1 : 0;
-                  return (
-                    <path
-                      key={i}
-                      d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`}
-                      fill={s.color}
-                      opacity={0.85}
-                    />
-                  );
-                })}
-                <circle cx="50" cy="50" r="24" fill="var(--surface)" />
-              </svg>
+        {/* ── Savings Target Progress ── */}
+        {(() => {
+          const target = 5000000; // Could be dynamic later
+          const pct = totalMasuk > 0 ? Math.min(Math.round((saldo / target) * 100), 100) : 0;
+          return (
+            <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_15px_rgba(255,209,220,0.15)] border border-outline-variant/20">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">savings</span>
+                  <h3 className="font-bold text-sm text-on-surface">Target Tabungan</h3>
+                </div>
+                <span className="text-xs font-bold text-primary">{pct}%</span>
+              </div>
+              <ProgressBar
+                value={pct}
+                color="var(--primary)"
+                indicator="⭐"
+                size="sm"
+              />
+              <p className="text-xs text-center mt-2 text-on-surface-variant">
+                Rp {saldo.toLocaleString("id-ID")} dari Rp {target.toLocaleString("id-ID")}
+              </p>
+            </section>
+          );
+        })()}
 
-              <div className="flex-1 min-w-0 space-y-1.5">
-                {catByMonth.slice(0, 5).map((c, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="size-2 rounded-full shrink-0" style={{ background: c.color }} />
-                      <span className="truncate" style={{ color: "var(--text)" }}>{c.name}</span>
+        {/* ── Family Members ── */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-sm text-on-surface flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">family_restroom</span>
+              Anggota Keluarga
+            </h3>
+            <span className="text-xs text-on-surface-variant">{members.length} orang</span>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            {members.map((m) => (
+              <div key={m.id} className="flex flex-col items-center gap-1 flex-shrink-0">
+                <SpriteAvatar
+                  initial={m.role?.[0]}
+                  size="lg"
+                />
+                <p className="text-[11px] font-semibold text-on-surface text-center">{m.role}</p>
+              </div>
+            ))}
+            {members.length === 0 && (
+              <div className="w-full text-center py-8">
+                <p className="text-sm text-on-surface-variant">Belum ada anggota keluarga</p>
+                <p className="text-xs text-on-surface-variant/50 mt-1">Bagikan kode invite ke keluarga</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── Recent Activity ── */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-sm text-on-surface flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">history</span>
+              Aktivitas Terbaru
+            </h3>
+            <span className="text-xs text-primary cursor-pointer font-semibold">Lihat Semua</span>
+          </div>
+
+          <div className="space-y-3">
+            {recentTx.map((tx: any) => (
+              <TransactionCard
+                key={tx.id}
+                icon={CAT_ICONS[tx.category] || "receipt_long"}
+                label={CAT_LABELS[tx.category] || tx.category}
+                note={tx.note}
+                amount={Number(tx.amount)}
+                type={tx.type}
+                member={members.find((m) => m.user_id === tx.user_id)?.role}
+                time={new Date(tx.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+              />
+            ))}
+            {recentTx.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-sm text-on-surface-variant">Belum ada transaksi</p>
+                <p className="text-xs text-on-surface-variant/50 mt-1">Mulai catat transaksi pertama!</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── Monthly Category Breakdown ── */}
+        {catBreakdown.length > 0 && (
+          <section className="bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_15px_rgba(255,209,220,0.15)] border border-outline-variant/20">
+            <h3 className="font-bold text-sm text-on-surface mb-3">Pengeluaran Bulan Ini</h3>
+            <div className="space-y-2">
+              {catBreakdown.map((c) => {
+                const max = catBreakdown[0]?.amount || 1;
+                const pct = Math.round((c.amount / max) * 100);
+                return (
+                  <div key={c.name} className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-on-surface w-20 truncate">{c.name}</span>
+                    <div className="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
-                    <span className="font-medium ml-2 shrink-0" style={{ color: "var(--text-muted)" }}>
+                    <span className="text-xs font-semibold text-on-surface-variant w-24 text-right">
                       Rp {c.amount.toLocaleString("id-ID")}
                     </span>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          </div>
+          </section>
         )}
-
-        {/* Members section */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Users size={16} style={{ color: "var(--text-muted)" }} />
-            <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-              Anggota ({members.length})
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {members.map((m) => (
-              <div key={m.id} className="card-layered p-3.5 flex items-center gap-3">
-                <div
-                  className="size-11 rounded-full flex items-center justify-center text-base font-bold"
-                  style={{ background: "var(--surface-hover)", color: "var(--text)" }}
-                >
-                  {m.role?.[0]?.toUpperCase() || "?"}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm truncate" style={{ color: "var(--text)" }}>
-                    {m.role}
-                  </p>
-                  {m.user_id === me?.user_id && (
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] h-5 px-1.5 mt-0.5 border-0 bg-[var(--navy)]/10 text-[var(--navy)]"
-                    >
-                      Kamu
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {members.length === 0 && (
-            <div className="card-layered text-center py-10 px-4">
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Belum ada anggota.
-              </p>
-              <p className="text-xs mt-1" style={{ color: "var(--text-faded)" }}>
-                Bagikan kode invite ke keluarga.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

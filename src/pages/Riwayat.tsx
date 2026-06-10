@@ -1,37 +1,22 @@
-import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { authClient } from "@/lib/auth-client";
 import { useFamily } from "@/lib/family-context";
 import { toast } from "sonner";
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Filter,
-  Trash2,
-  Pencil,
-  X,
-  Download,
-} from "lucide-react";
+import TopAppBar from "@/components/TopAppBar";
+import TransactionCard from "@/components/TransactionCard";
 
-const categoryLabel: Record<string, string> = {
+const CAT_ICONS: Record<string, string> = {
+  makan: "restaurant",
+  transport: "directions_car",
+  belanja: "shopping_bag",
+  tagihan: "bolt",
+  gaji: "stars",
+  bisnis: "storefront",
+  investasi: "finance",
+  lainnya: "category",
+};
+
+const CAT_LABELS: Record<string, string> = {
   makan: "Makan",
   transport: "Transport",
   belanja: "Belanja",
@@ -45,8 +30,7 @@ const categoryLabel: Record<string, string> = {
 export default function Riwayat() {
   const { family, members } = useFamily();
   const [transactions, setTransactions] = useState<any[]>([]);
-
-  // Filters
+  const [search, setSearch] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterType, setFilterType] = useState("all");
@@ -69,7 +53,7 @@ export default function Riwayat() {
     if (!family) return;
     const { data } = await supabase
       .from("transactions")
-      .select("*, member_id(id, role)")
+      .select("*")
       .eq("family_id", family.id)
       .order("created_at", { ascending: false })
       .limit(200);
@@ -117,7 +101,6 @@ export default function Riwayat() {
       toast.error("Tidak ada data untuk diexport");
       return;
     }
-
     const rows = filtered.map((tx) => {
       const date = new Date(tx.created_at).toLocaleDateString("id-ID");
       const memberRole = members.find((m) => m.id === tx.member_id)?.role || "Semua";
@@ -125,17 +108,15 @@ export default function Riwayat() {
         date,
         tx.type === "masuk" ? "Masuk" : "Keluar",
         tx.amount,
-        categoryLabel[tx.category] || tx.category,
+        CAT_LABELS[tx.category] || tx.category,
         tx.note || "",
         memberRole,
       ];
     });
-
     const header = ["Tanggal", "Tipe", "Jumlah", "Kategori", "Catatan", "Anggota"];
     const csv = [header, ...rows]
       .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
       .join("\n");
-
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -146,116 +127,137 @@ export default function Riwayat() {
     toast.success("CSV didownload");
   };
 
-  const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
-
-  // Month options (last 12 months)
-  const months: { value: string; label: string }[] = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    months.push({
-      value: `${y}-${m}`,
-      label: d.toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
-    });
-  }
-
-  const filtered = transactions.filter((tx) => {
-    if (filterMonth) {
-      const d = new Date(tx.created_at);
-      const txMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (txMonth !== filterMonth) return false;
+  // Month options
+  const months = useMemo(() => {
+    const result: { value: string; label: string }[] = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      result.push({
+        value: `${y}-${m}`,
+        label: d.toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
+      });
     }
-    if (filterCategory !== "all" && tx.category !== filterCategory) return false;
-    if (filterType !== "all" && tx.type !== filterType) return false;
-    return true;
-  });
+    return result;
+  }, []);
 
-  // Get all categories from data for filter dropdown
-  const allCats = [...new Set(transactions.map((t) => t.category))];
+  const allCats = useMemo(
+    () => [...new Set(transactions.map((t) => t.category))],
+    [transactions]
+  );
+
+  const filtered = useMemo(() => {
+    return transactions.filter((tx) => {
+      if (search) {
+        const s = search.toLowerCase();
+        const cat = CAT_LABELS[tx.category]?.toLowerCase() || tx.category?.toLowerCase() || "";
+        const note = (tx.note || "").toLowerCase();
+        const role = members.find((m) => m.id === tx.member_id)?.role?.toLowerCase() || "";
+        if (!cat.includes(s) && !note.includes(s) && !role.includes(s)) return false;
+      }
+      if (filterMonth) {
+        const d = new Date(tx.created_at);
+        const txMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        if (txMonth !== filterMonth) return false;
+      }
+      if (filterCategory !== "all" && tx.category !== filterCategory) return false;
+      if (filterType !== "all" && tx.type !== filterType) return false;
+      return true;
+    });
+  }, [transactions, search, filterMonth, filterCategory, filterType, members]);
+
+  // Group by date
+  const grouped = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const tx of filtered) {
+      const key = new Date(tx.created_at).toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(tx);
+    }
+    return map;
+  }, [filtered]);
 
   return (
-    <div className="min-h-dvh pb-24" style={{ background: "var(--bg)" }}>
-      <div className="px-5 pt-10">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-heading" style={{ color: "var(--text)" }}>
-            Riwayat
-          </h1>
+    <div className="min-h-dvh pb-32 bg-background">
+      <TopAppBar title="Riwayat" showBack />
 
-          {/* Export */}
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg"
-            style={{ color: "var(--text-muted)", background: "var(--surface-hover)" }}
-          >
-            <Download size={13} />
-            CSV
-          </button>
+      <main className="px-5 md:px-10 max-w-4xl mx-auto pt-4 space-y-4">
+        {/* Search bar */}
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant/50">
+            search
+          </span>
+          <input
+            type="text"
+            placeholder="Cari transaksi..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-12 pl-11 pr-4 rounded-full bg-surface-container-lowest border border-outline-variant text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-container/50 transition-all placeholder:text-on-surface-variant/40"
+          />
+          {/* Export + filter */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+            <button
+              onClick={exportCSV}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/50 hover:text-primary hover:bg-primary-container/30 transition-all"
+              title="Export CSV"
+            >
+              <span className="material-symbols-outlined text-lg">download</span>
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                showFilters || filterMonth || filterCategory !== "all" || filterType !== "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-on-surface-variant/50 hover:text-primary hover:bg-primary-container/30"
+              }`}
+              title="Filter"
+            >
+              <span className="material-symbols-outlined text-lg">filter_list</span>
+            </button>
+          </div>
         </div>
 
-        {/* Filter toggle */}
-        <div className="flex justify-end mt-2">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors ${
-              showFilters || filterMonth || filterCategory !== "all" || filterType !== "all"
-                ? "text-white"
-                : ""
-            }`}
-            style={
-              showFilters || filterMonth || filterCategory !== "all" || filterType !== "all"
-                ? { background: "var(--navy)" }
-                : { color: "var(--text-muted)", background: "var(--surface-hover)" }
-            }
-          >
-            <Filter size={13} />
-            Filter
-            {(filterMonth || filterCategory !== "all" || filterType !== "all") && (
-              <span className="size-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center">
-                {[filterMonth, filterCategory !== "all", filterType !== "all"].filter(Boolean).length}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Filter bar */}
+        {/* Filter chips */}
         {showFilters && (
-          <div className="animate-fade-in mt-2 p-3 card-layered flex flex-wrap gap-2">
-            <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[120px]" style={{ background: "var(--bg)" }}>
-                <SelectValue placeholder="Semua bulan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Semua bulan</SelectItem>
-                {months.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="animate-fade-in bg-surface-container-lowest rounded-xl p-4 shadow-[0_4px_15px_rgba(255,209,220,0.15)] border border-outline-variant/30 flex flex-wrap gap-2">
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="bg-surface-container rounded-full px-4 py-2 text-xs font-semibold border border-outline-variant outline-none text-on-surface-variant"
+            >
+              <option value="">Semua Bulan</option>
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
 
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[100px]" style={{ background: "var(--bg)" }}>
-                <SelectValue placeholder="Semua tipe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua tipe</SelectItem>
-                <SelectItem value="masuk">Masuk</SelectItem>
-                <SelectItem value="keluar">Keluar</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="bg-surface-container rounded-full px-4 py-2 text-xs font-semibold border border-outline-variant outline-none text-on-surface-variant"
+            >
+              <option value="all">Semua Tipe</option>
+              <option value="masuk">💰 Masuk</option>
+              <option value="keluar">💸 Keluar</option>
+            </select>
 
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="h-9 rounded-lg text-xs min-w-[110px]" style={{ background: "var(--bg)" }}>
-                <SelectValue placeholder="Semua kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua kategori</SelectItem>
-                {allCats.map((c) => (
-                  <SelectItem key={c} value={c}>{categoryLabel[c] || c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="bg-surface-container rounded-full px-4 py-2 text-xs font-semibold border border-outline-variant outline-none text-on-surface-variant"
+            >
+              <option value="all">Semua Kategori</option>
+              {allCats.map((c) => (
+                <option key={c} value={c}>{CAT_LABELS[c] || c}</option>
+              ))}
+            </select>
 
             {(filterMonth || filterCategory !== "all" || filterType !== "all") && (
               <button
@@ -264,213 +266,201 @@ export default function Riwayat() {
                   setFilterCategory("all");
                   setFilterType("all");
                 }}
-                className="h-9 px-3 rounded-lg text-xs flex items-center gap-1"
-                style={{ color: "var(--text-muted)", background: "var(--surface-hover)" }}
+                className="rounded-full px-4 py-2 text-xs font-semibold bg-error-container text-on-error-container hover:bg-error hover:text-on-error transition-all"
               >
-                <X size={12} /> Reset
+                ✕ Reset
               </button>
             )}
           </div>
         )}
 
-        {/* Transaction list */}
-        <div className="mt-4 space-y-2.5">
-          {filtered.map((tx) => (
-            <div key={tx.id} className="card-layered p-3.5 flex items-center justify-between gap-3 group">
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    tx.type === "masuk"
-                      ? "bg-[var(--green)]/10 text-[var(--green)]"
-                      : "bg-red-50 text-red-500 dark:bg-red-950 dark:text-red-400"
+        {/* Transaction list — grouped by date */}
+        {filtered.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary-container flex items-center justify-center">
+              <span className="material-symbols-outlined text-3xl text-on-primary-container">
+                {transactions.length === 0 ? "edit_note" : "search_off"}
+              </span>
+            </div>
+            <p className="font-semibold text-on-surface">
+              {transactions.length === 0 ? "Belum ada transaksi" : "Tidak ada hasil"}
+            </p>
+            <p className="text-sm text-on-surface-variant mt-1">
+              {transactions.length === 0 ? "Yuk mulai catat transaksi!" : "Coba ubah filter atau kata kunci"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {[...grouped.entries()].map(([date, txs]) => (
+              <section key={date}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-8 w-1 rounded-full bg-primary" />
+                  <h3 className="font-bold text-sm text-on-surface">{date}</h3>
+                </div>
+                <div className="space-y-2">
+                  {txs.map((tx) => (
+                    <div key={tx.id} className="group relative">
+                      <TransactionCard
+                        icon={CAT_ICONS[tx.category] || "receipt_long"}
+                        label={CAT_LABELS[tx.category] || tx.category}
+                        note={tx.note}
+                        amount={Number(tx.amount)}
+                        type={tx.type}
+                        member={members.find((m) => m.id === tx.member_id)?.role}
+                        time={new Date(tx.created_at).toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        onClick={() => openEdit(tx)}
+                      />
+                      {/* Swipe-to-delete (visual) — tap to reveal */}
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(tx);
+                          }}
+                          className="w-8 h-8 rounded-full bg-surface-container hover:bg-primary-container flex items-center justify-center transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-base text-on-surface-variant">edit</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteTransaction(tx.id);
+                          }}
+                          className="w-8 h-8 rounded-full bg-surface-container hover:bg-error-container flex items-center justify-center transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-base text-on-surface-variant hover:text-error">delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Edit Dialog */}
+      {editing && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-t-2xl md:rounded-2xl w-full md:max-w-md max-h-[90vh] overflow-y-auto p-6 shadow-[0_-10px_40px_rgba(255,209,220,0.5)] space-y-4 animate-slide-up">
+            <div className="flex items-center justify-between">
+              <h2 className="font-extrabold text-lg text-on-surface">Edit Transaksi</h2>
+              <button
+                onClick={() => setEditing(null)}
+                className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined text-on-surface-variant">close</span>
+              </button>
+            </div>
+
+            {/* Type toggle */}
+            <div className="bg-surface-container rounded-full p-1 flex gap-0.5">
+              {(["keluar", "masuk"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setEditType(t)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-sm font-bold transition-all ${
+                    editType === t
+                      ? t === "masuk"
+                        ? "bg-tertiary-container text-on-tertiary-container shadow-sm"
+                        : "bg-error-container text-on-error-container shadow-sm"
+                      : "text-on-surface-variant"
                   }`}
                 >
-                  {tx.type === "masuk" ? (
-                    <ArrowDownToLine size={18} />
-                  ) : (
-                    <ArrowUpFromLine size={18} />
-                  )}
-                </div>
-
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>
-                    {categoryLabel[tx.category] || tx.category}
-                  </p>
-                  {tx.note && (
-                    <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-                      {tx.note}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    {tx.member_id && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] h-5 px-1.5"
-                        style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
-                      >
-                        {tx.member_id?.role || "Anggota"}
-                      </Badge>
-                    )}
-                    <span className="text-[10px]" style={{ color: "var(--text-faded)" }}>
-                      {new Date(tx.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1 shrink-0">
-                <p
-                  className={`font-bold text-sm ${
-                    tx.type === "masuk" ? "text-[var(--green)]" : ""
-                  }`}
-                  style={tx.type !== "masuk" ? { color: "var(--text)" } : {}}
-                >
-                  {tx.type === "masuk" ? "+" : "-"}
-                  {formatRupiah(tx.amount)}
-                </p>
-
-                {/* Action buttons */}
-                <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => openEdit(tx)}
-                    className="size-7 rounded-lg flex items-center justify-center hover:opacity-70"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => deleteTransaction(tx.id)}
-                    className="size-7 rounded-lg flex items-center justify-center hover:text-red-500"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
+                  <span className="material-symbols-outlined text-sm">
+                    {t === "masuk" ? "arrow_downward" : "arrow_upward"}
+                  </span>
+                  {t === "masuk" ? "Masuk" : "Keluar"}
+                </button>
+              ))}
             </div>
-          ))}
 
-          {filtered.length === 0 && (
-            <div className="card-layered text-center py-12 px-4 mt-4">
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                {transactions.length === 0 ? "Belum ada transaksi." : "Tidak ada hasil filter."}
-              </p>
-              <p className="text-xs mt-1" style={{ color: "var(--text-faded)" }}>
-                {transactions.length === 0 ? "Yuk mulai catat di tab Catat!" : "Coba ubah filter."}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
-        <DialogContent className="rounded-2xl p-6 gap-5 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold tracking-heading" style={{ color: "var(--text)" }}>
-              Edit Transaksi
-            </DialogTitle>
-          </DialogHeader>
-          {editing && (
-            <div className="space-y-4">
-              {/* Type toggle */}
-              <div className="flex rounded-xl p-1 gap-1" style={{ background: "var(--surface-hover)" }}>
-                {(["keluar", "masuk"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setEditType(t)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-sm font-semibold transition-all ${
-                      editType === t
-                        ? t === "masuk"
-                          ? "bg-white text-[var(--green)] shadow-sm dark:bg-[var(--surface)]"
-                          : "bg-white text-red-500 shadow-sm dark:bg-[var(--surface)]"
-                        : ""
-                    }`}
-                    style={editType !== t ? { color: "var(--text-muted)" } : {}}
-                  >
-                    {t === "masuk" ? <ArrowDownToLine size={14} /> : <ArrowUpFromLine size={14} />}
-                    {t === "masuk" ? "Masuk" : "Keluar"}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>Jumlah</Label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold" style={{ color: "var(--text-muted)" }}>Rp</span>
-                  <Input
-                    type="number"
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
-                    className="h-12 pl-10 rounded-xl text-lg font-semibold"
-                    style={{ borderColor: "var(--border)", background: "var(--bg)" }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>Kategori</Label>
-                <Select value={editCategory} onValueChange={setEditCategory}>
-                  <SelectTrigger className="h-12 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allCats.map((c) => (
-                      <SelectItem key={c} value={c}>{categoryLabel[c] || c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {members.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>Anggota</Label>
-                  <Select value={editMemberId} onValueChange={setEditMemberId}>
-                    <SelectTrigger className="h-12 rounded-xl">
-                      <SelectValue placeholder="Semua anggota" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Semua anggota</SelectItem>
-                      {members.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.role}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <Label className="text-[13px] font-medium" style={{ color: "var(--text)" }}>Catatan</Label>
-                <Textarea
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  rows={2}
-                  className="rounded-xl resize-none"
-                  style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+            {/* Amount */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5 block">
+                Jumlah
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-on-surface-variant/40">Rp</span>
+                <input
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full h-12 pl-12 pr-4 rounded-xl bg-surface-container border border-outline-variant text-lg font-semibold text-on-surface outline-none focus:border-primary"
                 />
               </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-11 rounded-xl"
-                  onClick={() => setEditing(null)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  className="flex-1 h-11 rounded-xl text-[15px] font-semibold tracking-tight"
-                  style={{ background: "var(--navy)" }}
-                  onClick={saveEdit}
-                >
-                  Simpan
-                </Button>
-              </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+
+            {/* Category */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5 block">
+                Kategori
+              </label>
+              <select
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                className="w-full h-12 px-4 rounded-xl bg-surface-container border border-outline-variant text-sm font-medium text-on-surface outline-none focus:border-primary"
+              >
+                {allCats.map((c) => (
+                  <option key={c} value={c}>{CAT_LABELS[c] || c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Member */}
+            {members.length > 0 && (
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5 block">
+                  Anggota
+                </label>
+                <select
+                  value={editMemberId}
+                  onChange={(e) => setEditMemberId(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl bg-surface-container border border-outline-variant text-sm font-medium text-on-surface outline-none focus:border-primary"
+                >
+                  <option value="">Semua anggota</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>{m.role}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Note */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5 block">
+                Catatan
+              </label>
+              <textarea
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                rows={2}
+                className="w-full rounded-xl bg-surface-container border border-outline-variant p-4 text-sm resize-none outline-none focus:border-primary"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setEditing(null)}
+                className="flex-1 h-12 rounded-full font-bold text-sm bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={saveEdit}
+                className="flex-1 h-12 rounded-full font-bold text-sm bg-primary text-primary-foreground active:scale-95 transition-all shadow-[0_4px_0_var(--on-primary-fixed-variant)] active:shadow-none active:translate-y-[2px]"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

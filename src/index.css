@@ -1,13 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 
-@custom-variant dark (&:is(.dark *));
+/* ── Kindred Bloom Design System ── */
+/* Material You color tokens from PiggyPals / Stitch */
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Nunito Sans', sans-serif;
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,6 +40,7 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -48,70 +50,182 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ── Base layer ── */
+/* ── Base layer: Kindred Bloom tokens ── */
 @layer base {
   :root {
-    --bg: #faf9f7;
-    --surface: #ffffff;
-    --surface-hover: #f3f1ed;
-    --navy: #1a1f36;
-    --navy-light: #8b9dc3;
-    --text: #1a1f36;
-    --text-muted: #787676;
-    --text-faded: #c4bfb8;
-    --border: #e8e4dd;
-    --gold: #d4920a;
-    --green: #0d9488;
-    --red: #ef4444;
+    /* Kindred Bloom core — mapped to shadcn vars */
+    --background: #f8f9fa;
+    --foreground: #191c1d;
+
+    --card: #ffffff;
+    --card-foreground: #191c1d;
+
+    --popover: #ffffff;
+    --popover-foreground: #191c1d;
+
+    --primary: #78555e;
+    --primary-foreground: #ffffff;
+
+    --secondary: #725477;
+    --secondary-foreground: #ffffff;
+
+    --muted: #f3f4f5;
+    --muted-foreground: #4f4446;
+
+    --accent: #fad3fd;
+    --accent-foreground: #77587c;
+
+    --destructive: #ba1a1a;
+    --destructive-foreground: #ffffff;
+
+    --border: #d3c3c5;
+    --input: #d3c3c5;
+    --ring: #78555e;
+
+    --radius: 1rem;
+
+    /* Sidebar */
+    --sidebar-background: #f8f9fa;
+    --sidebar-foreground: #4f4446;
+    --sidebar-primary: #78555e;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #fad3fd;
+    --sidebar-accent-foreground: #77587c;
+    --sidebar-border: #d3c3c5;
+    --sidebar-ring: #78555e;
+
+    /* Chart colors */
+    --chart-1: #78555e;
+    --chart-2: #725477;
+    --chart-3: #636037;
+    --chart-4: #e4dfac;
+    --chart-5: #ffd1dc;
+
+    /* ── Extended Kindred Bloom tokens ── */
+    --primary-container: #ffd1dc;
+    --on-primary-container: #7a5761;
+    --primary-fixed: #ffd9e2;
+    --primary-fixed-dim: #e7bbc6;
+    --on-primary-fixed: #2d141c;
+    --on-primary-fixed-variant: #5e3e47;
+
+    --secondary-container: #fad3fd;
+    --on-secondary-container: #77587c;
+    --secondary-fixed: #fcd7ff;
+    --secondary-fixed-dim: #dfbbe4;
+    --on-secondary-fixed: #2a1131;
+    --on-secondary-fixed-variant: #593d5f;
+
+    --tertiary: #636037;
+    --on-tertiary: #ffffff;
+    --tertiary-container: #e4dfac;
+    --on-tertiary-container: #666239;
+    --tertiary-fixed: #eae4b1;
+    --tertiary-fixed-dim: #cdc897;
+    --on-tertiary-fixed: #1e1c00;
+    --on-tertiary-fixed-variant: #4b4822;
+
+    --error: #ba1a1a;
+    --on-error: #ffffff;
+    --error-container: #ffdad6;
+    --on-error-container: #93000a;
+
+    --surface: #f8f9fa;
+    --surface-container: #edeeef;
+    --surface-container-low: #f3f4f5;
+    --surface-container-lowest: #ffffff;
+    --surface-container-high: #e7e8e9;
+    --surface-container-highest: #e1e3e4;
+    --surface-dim: #d9dadb;
+    --surface-bright: #f8f9fa;
+    --surface-variant: #e1e3e4;
+    --surface-tint: #78555e;
+
+    --on-surface: #191c1d;
+    --on-surface-variant: #4f4446;
+    --on-background: #191c1d;
+
+    --outline: #817476;
+    --outline-variant: #d3c3c5;
+
+    --inverse-surface: #2e3132;
+    --inverse-primary: #e7bbc6;
+    --inverse-on-surface: #f0f1f2;
   }
 
-  .dark {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface-hover: #252836;
-    --navy: #1a1f36;
-    --navy-light: #6b7daa;
-    --text: #e4e4e7;
-    --text-muted: #9ca3af;
-    --text-faded: #4b5563;
-    --border: #2d3143;
-    --gold: #f59e0b;
-    --green: #2dd4bf;
-    --red: #f87171;
-  }
+  /* No dark mode for Kindred Bloom — light-only by design */
 }
 
-/* ── Global ── */
+/* ── Global reset ── */
 html {
-  font-family: 'Geist Variable', sans-serif;
+  font-family: 'Nunito Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--background);
+  color: var(--foreground);
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* ── Reusable card ── */
-.card-layered {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02), 0 2px 8px rgba(0,0,0,0.04);
-}
-.dark .card-layered {
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.3);
+/* ── Material Symbols ── */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* ── Animations ── */
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+.material-symbols-outlined.icon-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out;
+
+.material-symbols-outlined.icon-bold {
+  font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ── Kindred Bloom Animations ── */
+@keyframes spring-pop {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-spring-pop {
+  animation: spring-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.85; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float-y {
+  animation: float-y 3s ease-in-out infinite;
+}
+
+@keyframes bounce-short {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-bounce-short {
+  animation: bounce-short 0.6s ease-in-out 2;
 }
 
 @keyframes slide-up {
@@ -122,12 +236,99 @@ body {
   animation: slide-up 0.3s ease-out;
 }
 
-/* ── Pulse ring for recording ── */
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(120, 85, 94, 0.4); }
+  70% { box-shadow: 0 0 0 16px rgba(120, 85, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(120, 85, 94, 0); }
 }
 .animate-pulse-ring {
-  animation: pulse-ring 1.5s ease-out infinite;
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+.animate-typing-bounce {
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* ── Kindred Bloom Utility Classes ── */
+
+/* Glassmorphism card */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 1);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(255, 209, 220, 0.3);
+}
+
+/* 3D pressable button */
+.btn-primary-3d {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 9999px;
+  padding: 0.75rem 2rem;
+  font-weight: 700;
+  box-shadow: 0 4px 0 var(--on-primary-fixed-variant);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.btn-primary-3d:active {
+  box-shadow: none;
+  transform: translateY(2px);
+}
+
+/* Gradient background card */
+.gradient-card {
+  background: linear-gradient(135deg, var(--primary-container), var(--primary-fixed-dim));
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(255, 209, 220, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Surface card — generic elevated card */
+.surface-card {
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 4px 15px rgba(255, 209, 220, 0.1);
+}
+
+/* Category icon circle */
+.cat-icon-circle {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scrollbar hide (for chip carousels) */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Dot pattern background (for AI chat) */
+.bg-pattern-dots {
+  background-image: radial-gradient(var(--primary-container) 1px, transparent 1px);
+  background-size: 20px 20px;
 }

@@ -12,6 +12,11 @@ import Catat from "@/pages/Catat";
 import Riwayat from "@/pages/Riwayat";
 import Anggota from "@/pages/Anggota";
 import Profile from "@/pages/Profile";
+import Stats from "@/pages/Stats";
+import Goals from "@/pages/Goals";
+import Budget from "@/pages/Budget";
+import Calendar from "@/pages/Calendar";
+import AIChat from "@/pages/AIChat";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +132,46 @@ export default function App() {
                 element={
                   <AppGuard>
                     <Profile />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/stats"
+                element={
+                  <AppGuard>
+                    <Stats />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/goals"
+                element={
+                  <AppGuard>
+                    <Goals />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/budget"
+                element={
+                  <AppGuard>
+                    <Budget />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/calendar"
+                element={
+                  <AppGuard>
+                    <Calendar />
+                  </AppGuard>
+                }
+              />
+              <Route
+                path="/aichat"
+                element={
+                  <AppGuard>
+                    <AIChat />
                   </AppGuard>
                 }
               />
