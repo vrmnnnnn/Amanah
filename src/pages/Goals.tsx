@@ -28,7 +28,7 @@ export default function Goals() {
   const [addOpen, setAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newTarget, setNewTarget] = useState("");
-  const [newIcon, setNewIcon] = useState("savings");
+  const [newIcon, setNewIcon] = useState("spa");
 
   useEffect(() => {
     if (family) loadGoals();
@@ -65,7 +65,7 @@ export default function Goals() {
     saveGoals([...goals, goal]);
     setNewTitle("");
     setNewTarget("");
-    setNewIcon("savings");
+    setNewIcon("spa");
     setAddOpen(false);
     toast.success("Target tabungan dibuat! 🎯");
   };

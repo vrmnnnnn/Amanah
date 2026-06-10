@@ -4,7 +4,7 @@ const tabs = [
   { path: "/home", label: "Home", icon: "home" },
   { path: "/stats", label: "Stats", icon: "insights" },
   // Center FAB — rendered separately
-  { path: "/goals", label: "Goals", icon: "savings" },
+  { path: "/goals", label: "Goals", icon: "spa" },
   { path: "/profile", label: "Profil", icon: "person" },
 ];
 
