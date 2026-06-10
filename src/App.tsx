@@ -17,6 +17,8 @@ import Goals from "@/pages/Goals";
 import Budget from "@/pages/Budget";
 import Calendar from "@/pages/Calendar";
 import AIChat from "@/pages/AIChat";
+import VerifyEmail from "@/pages/VerifyEmail";
+import AuthCallback from "@/pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -85,6 +87,8 @@ export default function App() {
             />
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
 
               <Route
                 path="/onboarding"

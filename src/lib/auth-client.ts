@@ -5,6 +5,7 @@ import type { Session, Provider } from "@supabase/supabase-js";
 /**
  * Supabase Auth adapter — preserves the same API shape as Better Auth's
  * `createAuthClient` so all existing pages continue to work.
+ * v4: added resetPassword, resendVerification, confirmEmail
  */
 
 export const authClient = {
@@ -29,7 +30,6 @@ export const authClient = {
         options: { redirectTo: window.location.origin + "/home" },
       });
       if (error) throw error;
-      // OAuth redirects away — data.url is the redirect URL, not returned here
       return data;
     },
   },
@@ -46,7 +46,10 @@ export const authClient = {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { name } },
+        options: {
+          data: { name },
+          emailRedirectTo: window.location.origin + "/auth/callback",
+        },
       });
       if (error) throw error;
       return data;
@@ -55,6 +58,38 @@ export const authClient = {
   signOut: async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+  },
+  /** Reset password — sends recovery email */
+  resetPassword: async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/auth/callback",
+    });
+    if (error) throw error;
+  },
+  /** Update password after recovery — for auth callback page */
+  updatePassword: async (newPassword: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (error) throw error;
+    return data;
+  },
+  /** Resend email verification */
+  resendVerification: async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: window.location.origin + "/auth/callback",
+      },
+    });
+    if (error) throw error;
+  },
+  /** Exchange auth tokens from URL hash (callback handler) */
+  exchangeCode: async (code: string) => {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    return data;
   },
   useSession: () => {
     const [session, setSession] = useState<Session | null>(null);
@@ -86,4 +121,14 @@ export const authClient = {
   },
 };
 
-export const { signIn, signUp, signOut, useSession, getSession } = authClient;
+export const {
+  signIn,
+  signUp,
+  signOut,
+  resetPassword,
+  updatePassword,
+  resendVerification,
+  exchangeCode,
+  useSession,
+  getSession,
+} = authClient;
