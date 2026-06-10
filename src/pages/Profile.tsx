@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ const BUDGET_KEY = "amanah-budget";
 
 export default function Profile() {
   const { data: session } = authClient.useSession();
-  const { family, me, members } = useFamily();
+  const { family, me, members, refresh } = useFamily();
   const navigate = useNavigate();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -35,6 +35,10 @@ export default function Profile() {
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Avatar upload state
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem(BUDGET_KEY);
@@ -43,7 +47,8 @@ export default function Profile() {
 
   useEffect(() => {
     if (editOpen) {
-      const name = me?.role || session?.user?.user_metadata?.name || "";
+      // Prioritaskan user_metadata.name, fallback ke role keluarga
+      const name = session?.user?.user_metadata?.name || me?.role || "";
       setEditName(name);
     }
   }, [editOpen, me, session]);
@@ -61,10 +66,59 @@ export default function Profile() {
       if (error) throw error;
       toast.success("Nama berhasil diperbarui");
       setEditOpen(false);
+      await refresh();
     } catch (err: any) {
       toast.error(err?.message || "Gagal menyimpan nama");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !session?.user) return;
+
+    // Validate type
+    if (!file.type.startsWith("image/")) {
+      toast.error("File harus berupa gambar (JPG, PNG, WebP)");
+      return;
+    }
+
+    // Validate size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Ukuran gambar maksimal 2MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const userId = session.user.id;
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${userId}/avatar.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(path);
+
+      const avatarUrl = urlData.publicUrl;
+
+      // Save to user metadata
+      await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl },
+      });
+
+      await refresh();
+      toast.success("Foto profil berhasil diperbarui");
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal upload foto");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -121,13 +175,33 @@ export default function Profile() {
     toast.success("CSV terdownload!");
   };
 
-  const displayName = me?.role || session?.user?.user_metadata?.name || session?.user?.email?.split("@")[0] || "Kamu";
+  // Display name: user_metadata.name > role keluarga > email prefix > fallback
+  const displayName =
+    session?.user?.user_metadata?.name ||
+    me?.role ||
+    session?.user?.email?.split("@")[0] ||
+    "Kamu";
+
   const userEmail = session?.user?.email ?? "—";
   const provider = (session?.user?.app_metadata?.provider as string) || "email";
+
+  // Avatar: uploaded > DiceBear fallback
+  const avatarUrl =
+    session?.user?.user_metadata?.avatar_url ||
+    `https://api.dicebear.com/9.x/thumbs/svg?seed=${userEmail}&backgroundColor=ffd1dc`;
 
   return (
     <div className="min-h-dvh pb-32 bg-background">
       <TopAppBar title="Profil" showBack />
+
+      {/* Hidden file input for avatar */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleAvatarUpload}
+      />
 
       <main className="px-5 md:px-10 max-w-xl mx-auto pt-4 space-y-4">
         {/* Profile Header */}
@@ -135,18 +209,27 @@ export default function Profile() {
           <div className="flex flex-col items-center text-center gap-3">
             {/* Avatar */}
             <div className="relative">
-              <div className="w-20 h-20 rounded-full border-4 border-primary-container flex items-center justify-center text-3xl font-bold bg-gradient-to-br from-primary-container to-secondary-container text-on-primary-container overflow-hidden">
-                <img
-                  alt=""
-                  className="w-full h-full object-cover"
-                  src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${userEmail}&backgroundColor=ffd1dc`}
-                />
-              </div>
               <button
-                onClick={() => setEditOpen(true)}
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs border-2 border-white shadow-sm hover:scale-110 transition-transform"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-20 h-20 rounded-full border-4 border-primary-container flex items-center justify-center text-3xl font-bold bg-gradient-to-br from-primary-container to-secondary-container text-on-primary-container overflow-hidden hover:opacity-90 transition-all disabled:opacity-60"
               >
-                <span className="material-symbols-outlined text-sm">edit</span>
+                {uploading ? (
+                  <div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                ) : (
+                  <img
+                    alt=""
+                    className="w-full h-full object-cover"
+                    src={avatarUrl}
+                  />
+                )}
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs border-2 border-white shadow-sm hover:scale-110 transition-transform disabled:opacity-60"
+              >
+                <span className="material-symbols-outlined text-sm">photo_camera</span>
               </button>
             </div>
 
@@ -217,6 +300,25 @@ export default function Profile() {
             <div>
               <p className="font-medium text-sm text-on-surface">Edit Profil</p>
               <p className="text-xs text-on-surface-variant">Ubah nama tampilan</p>
+            </div>
+            <span className="ml-auto material-symbols-outlined text-on-surface-variant/40">chevron_right</span>
+          </GlassCard>
+
+          {/* Ganti Foto */}
+          <GlassCard
+            className="p-4 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-all"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="w-10 h-10 rounded-xl bg-secondary-container/60 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-secondary">photo_camera</span>
+            </div>
+            <div>
+              <p className="font-medium text-sm text-on-surface">Ganti Foto Profil</p>
+              <p className="text-xs text-on-surface-variant">
+                {session?.user?.user_metadata?.avatar_url
+                  ? "Foto sudah diatur"
+                  : "Upload foto dari galeri"}
+              </p>
             </div>
             <span className="ml-auto material-symbols-outlined text-on-surface-variant/40">chevron_right</span>
           </GlassCard>
