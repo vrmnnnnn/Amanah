@@ -6,9 +6,7 @@ import { useCategories } from "@/lib/categories";
 import { useAccounts } from "@/lib/accounts";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
-import VoiceButton from "@/components/VoiceButton";
 import CategoryChip from "@/components/CategoryChip";
-import KeypadInput from "@/components/KeypadInput";
 
 declare global {
   interface Window {
@@ -180,8 +178,25 @@ export default function Catat() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* ── Amount + Keypad ── */}
-          <KeypadInput value={amount} onChange={setAmount} />
+          {/* ── Amount ── */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant px-1">
+              Jumlah
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-on-surface-variant/40">
+                Rp
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full h-16 pl-10 pr-4 rounded-2xl bg-surface-container-lowest border border-outline-variant text-3xl font-extrabold text-on-surface tracking-tight outline-none focus:border-primary focus:ring-2 focus:ring-primary-container transition-all placeholder:text-on-surface-variant/20"
+              />
+            </div>
+          </div>
 
           {/* AI sentiment preview */}
           {amount && category && (

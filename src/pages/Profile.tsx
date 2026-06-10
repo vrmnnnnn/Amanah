@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -46,7 +47,7 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Categories
-  const { all: allCats, custom, addCategory, removeCategory } = useCategories(family?.id);
+  const { all: allCats, custom, addCategory, removeCategory, ICON_OPTIONS } = useCategories(family?.id);
   const { accounts, addAccount, deleteAccount } = useAccounts(family?.id);
   const [newCatName, setNewCatName] = useState("");
   const [newCatIcon, setNewCatIcon] = useState("category");
