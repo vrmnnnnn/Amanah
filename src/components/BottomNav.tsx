@@ -5,7 +5,7 @@ const tabs = [
   { path: "/stats", label: "Stats", icon: "insights" },
   // Center FAB — rendered separately
   { path: "/goals", label: "Goals", icon: "savings" },
-  { path: "/anggota", label: "Family", icon: "family_restroom" },
+  { path: "/profile", label: "Profil", icon: "person" },
 ];
 
 export default function BottomNav() {

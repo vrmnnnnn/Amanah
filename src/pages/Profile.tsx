@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { authClient } from "@/lib/auth-client";
 import { useFamily } from "@/lib/family-context";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
 import GlassCard from "@/components/GlassCard";
@@ -29,11 +30,43 @@ export default function Profile() {
   const [savedBudget, setSavedBudget] = useState<number | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
 
+  // Edit profile state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem(BUDGET_KEY);
     if (stored) setSavedBudget(Number(stored));
   }, []);
+
+  useEffect(() => {
+    if (editOpen) {
+      const name = me?.role || session?.user?.user_metadata?.name || "";
+      setEditName(name);
+    }
+  }, [editOpen, me, session]);
+
+  const handleSaveName = async () => {
+    if (!editName.trim()) {
+      toast.error("Nama tidak boleh kosong");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { name: editName.trim() },
+      });
+      if (error) throw error;
+      toast.success("Nama berhasil diperbarui");
+      setEditOpen(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal menyimpan nama");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -60,7 +93,6 @@ export default function Profile() {
 
   const exportCSV = async () => {
     if (!family) return;
-    const { supabase } = await import("@/lib/supabase");
     const { data: t } = await supabase
       .from("transactions")
       .select("*, member_id(id, role)")
@@ -110,9 +142,12 @@ export default function Profile() {
                   src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${userEmail}&backgroundColor=ffd1dc`}
                 />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs border-2 border-white shadow-sm">
+              <button
+                onClick={() => setEditOpen(true)}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs border-2 border-white shadow-sm hover:scale-110 transition-transform"
+              >
                 <span className="material-symbols-outlined text-sm">edit</span>
-              </div>
+              </button>
             </div>
 
             {/* Name & Role */}
@@ -125,10 +160,13 @@ export default function Profile() {
 
             {/* Family badge */}
             {family && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-tertiary-container text-on-tertiary-container text-xs font-semibold">
+              <button
+                onClick={() => navigate("/anggota")}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-tertiary-container text-on-tertiary-container text-xs font-semibold hover:scale-105 transition-transform"
+              >
                 <span className="material-symbols-outlined text-sm">group</span>
                 {family.name} · {members.length} anggota
-              </div>
+              </button>
             )}
           </div>
         </GlassCard>
@@ -168,6 +206,38 @@ export default function Profile() {
         </h3>
 
         <div className="space-y-2">
+          {/* Edit Profile */}
+          <GlassCard
+            className="p-4 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-all"
+            onClick={() => setEditOpen(true)}
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary-container/60 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-primary">person_edit</span>
+            </div>
+            <div>
+              <p className="font-medium text-sm text-on-surface">Edit Profil</p>
+              <p className="text-xs text-on-surface-variant">Ubah nama tampilan</p>
+            </div>
+            <span className="ml-auto material-symbols-outlined text-on-surface-variant/40">chevron_right</span>
+          </GlassCard>
+
+          {/* Kelola Anggota */}
+          <GlassCard
+            className="p-4 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-all"
+            onClick={() => navigate("/anggota")}
+          >
+            <div className="w-10 h-10 rounded-xl bg-tertiary-container/60 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-on-tertiary-container">group</span>
+            </div>
+            <div>
+              <p className="font-medium text-sm text-on-surface">Kelola Anggota</p>
+              <p className="text-xs text-on-surface-variant">
+                {family ? `${members.length} anggota di ${family.name}` : "Atur anggota keluarga"}
+              </p>
+            </div>
+            <span className="ml-auto material-symbols-outlined text-on-surface-variant/40">chevron_right</span>
+          </GlassCard>
+
           {/* Theme */}
           <GlassCard className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -260,6 +330,44 @@ export default function Profile() {
           Amanah · Kindred Bloom
         </p>
       </main>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="rounded-2xl p-6 gap-5 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-on-surface">
+              Edit Profil
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-on-surface">
+                Nama Tampilan
+              </Label>
+              <Input
+                type="text"
+                placeholder="Nama kamu"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="h-12 rounded-xl bg-surface-container border-outline-variant"
+                onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+                autoFocus
+              />
+            </div>
+            <div className="text-xs text-on-surface-variant bg-surface-container rounded-xl p-3">
+              <span className="material-symbols-outlined text-sm align-middle mr-1.5">info</span>
+              Email <strong className="text-on-surface">{userEmail}</strong> tidak dapat diubah.
+            </div>
+            <Button
+              className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+              onClick={handleSaveName}
+              disabled={saving}
+            >
+              {saving ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Budget Dialog */}
       <Dialog open={budgetOpen} onOpenChange={setBudgetOpen}>

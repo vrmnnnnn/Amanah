@@ -14,14 +14,18 @@ export default function TopAppBar({ title, showBack, onBack }: TopAppBarProps) {
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/20 shadow-[0_10px_30px_rgba(255,209,220,0.1)]">
       <div className="flex justify-between items-center px-5 py-2 w-full">
-        <div className="flex items-center gap-3">
+        {/* Left: Avatar + Title — tappable → profile */}
+        <button
+          onClick={() => navigate("/profile")}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
           {showBack && (
-            <button
-              onClick={onBack || (() => navigate(-1))}
+            <span
+              onClick={(e) => { e.stopPropagation(); (onBack || (() => navigate(-1)))(); }}
               className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface-variant"
             >
               <span className="material-symbols-outlined">arrow_back</span>
-            </button>
+            </span>
           )}
           {/* Avatar */}
           <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-container">
@@ -34,12 +38,14 @@ export default function TopAppBar({ title, showBack, onBack }: TopAppBarProps) {
           <h1 className="font-extrabold text-lg text-primary tracking-tight">
             {title || family?.name || "Amanah"}
           </h1>
-        </div>
+        </button>
 
-        <button className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container hover:bg-surface-container-high transition-colors text-primary relative">
-          <span className="material-symbols-outlined">notifications</span>
-          {/* Notification dot */}
-          <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full" />
+        {/* Right: Anggota shortcut */}
+        <button
+          onClick={() => navigate("/anggota")}
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface-variant relative"
+        >
+          <span className="material-symbols-outlined">group</span>
         </button>
       </div>
     </header>
