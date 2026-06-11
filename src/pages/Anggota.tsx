@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { authClient } from "@/lib/auth-client";
-import { useFamily } from "@/lib/family-context";
+import { useFamily, getMemberDisplayName } from "@/lib/family-context";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
 import GlassCard from "@/components/GlassCard";
@@ -220,7 +220,7 @@ export default function Anggota() {
                     ) : (
                       <>
                         <p className="font-semibold text-sm text-on-surface flex items-center gap-1.5">
-                          {m.role}
+                          {getMemberDisplayName(m)}
                           {isMe && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary-container text-primary font-semibold">
                               Kamu
@@ -252,7 +252,7 @@ export default function Anggota() {
                         <span className="material-symbols-outlined text-lg">edit</span>
                       </button>
                       <button
-                        onClick={() => { setDeleteTarget(m.id); setDeleteName(m.role); }}
+                        onClick={() => { setDeleteTarget(m.id); setDeleteName(getMemberDisplayName(m)); }}
                         className="size-9 rounded-full flex items-center justify-center hover:bg-destructive/10 transition-colors text-on-surface-variant hover:text-destructive"
                         title="Hapus anggota"
                       >

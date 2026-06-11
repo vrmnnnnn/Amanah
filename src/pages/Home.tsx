@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useFamily } from "@/lib/family-context";
+import { useFamily, getMemberDisplayName, getMemberAvatar } from "@/lib/family-context";
 import { useCategories } from "@/lib/categories";
 import { useAccounts } from "@/lib/accounts";
 import TopAppBar from "@/components/TopAppBar";
-import SpriteAvatar from "@/components/SpriteAvatar";
 import ProgressBar from "@/components/ProgressBar";
 import TransactionCard from "@/components/TransactionCard";
 
@@ -178,11 +177,16 @@ export default function Home() {
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
             {members.map((m) => (
               <div key={m.id} className="flex flex-col items-center gap-1 flex-shrink-0">
-                <SpriteAvatar
-                  initial={m.role?.[0]}
-                  size="lg"
-                />
-                <p className="text-[11px] font-semibold text-on-surface text-center">{m.role}</p>
+                <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-primary-container shrink-0">
+                  <img
+                    alt=""
+                    className="w-full h-full object-cover"
+                    src={getMemberAvatar(m, 80)}
+                  />
+                </div>
+                <p className="text-[11px] font-semibold text-on-surface text-center">
+                  {getMemberDisplayName(m)}
+                </p>
               </div>
             ))}
             {members.length === 0 && (
@@ -213,7 +217,7 @@ export default function Home() {
                 note={tx.note}
                 amount={Number(tx.amount)}
                 type={tx.type}
-                member={members.find((m) => m.user_id === tx.user_id)?.role}
+                member={members.find((m) => m.user_id === tx.user_id)?.name || members.find((m) => m.user_id === tx.user_id)?.role}
                 time={new Date(tx.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
               />
             ))}

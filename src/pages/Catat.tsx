@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { authClient } from "@/lib/auth-client";
-import { useFamily } from "@/lib/family-context";
+import { useFamily, getMemberDisplayName } from "@/lib/family-context";
 import { useCategories } from "@/lib/categories";
 import { useAccounts } from "@/lib/accounts";
 import { toast } from "sonner";
@@ -286,7 +286,7 @@ export default function Catat() {
                   }`}
                 >
                   <span className="material-symbols-outlined text-base">person</span>
-                  {m.role} {m.user_id === me?.user_id ? "(Kamu)" : ""}
+                  {getMemberDisplayName(m)} {m.user_id === me?.user_id ? "(Kamu)" : ""}
                 </button>
               ))}
             </div>

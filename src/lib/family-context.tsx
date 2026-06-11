@@ -19,6 +19,7 @@ export interface FamilyMember {
   // Denormalized from auth
   email?: string;
   name?: string;
+  avatar_url?: string;
 }
 
 interface FamilyContextType {
@@ -84,12 +85,23 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       .order("joined_at");
 
     if (mems) {
-      // Fetch user emails/names from auth (we can't query auth.users directly via anon key)
-      // Instead, store name in user metadata and read it
-      const enriched: FamilyMember[] = mems.map((m: any) => ({
-        ...m,
-        email: m.user_id === session.user.id ? session.user.email : undefined,
-      }));
+      // Enrich: current user gets name + avatar from auth metadata; others keep role as fallback
+      const enriched: FamilyMember[] = mems.map((m: any) => {
+        const isMe = m.user_id === session.user.id;
+        const meta = session.user.user_metadata;
+        const displayName = isMe
+          ? (meta?.name || m.role)
+          : (m.name || m.role);
+        const avatar = isMe
+          ? (meta?.avatar_url || null)
+          : (m.avatar_url || null);
+        return {
+          ...m,
+          email: isMe ? session.user.email : undefined,
+          name: displayName,
+          avatar_url: avatar,
+        };
+      });
       setMembers(enriched);
     }
 
@@ -109,4 +121,16 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
 export function useFamily() {
   return useContext(FamilyContext);
+}
+
+/** Get display name for a member: prefers name (from user_metadata), falls back to role */
+export function getMemberDisplayName(member: FamilyMember): string {
+  return member.name || member.role || "Anggota";
+}
+
+/** Get avatar URL for a member: uses avatar_url if available, otherwise DiceBear fallback */
+export function getMemberAvatar(member: FamilyMember, size: number = 80): string {
+  if (member.avatar_url) return member.avatar_url;
+  const seed = member.name || member.role || member.user_id;
+  return `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed)}&size=${size}&backgroundColor=ffd1dc`;
 }

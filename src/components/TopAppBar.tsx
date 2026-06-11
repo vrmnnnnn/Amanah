@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { useFamily } from "@/lib/family-context";
+import { useFamily, getMemberAvatar } from "@/lib/family-context";
+import { authClient } from "@/lib/auth-client";
 
 interface TopAppBarProps {
   title?: string;
@@ -9,7 +10,12 @@ interface TopAppBarProps {
 
 export default function TopAppBar({ title, showBack, onBack }: TopAppBarProps) {
   const navigate = useNavigate();
-  const { family } = useFamily();
+  const { family, me } = useFamily();
+  const { data: session } = authClient.useSession();
+
+  const avatarUrl = me
+    ? getMemberAvatar(me, 80)
+    : `https://api.dicebear.com/9.x/thumbs/svg?seed=Amanah&backgroundColor=ffd1dc`;
 
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/20 shadow-[0_10px_30px_rgba(255,209,220,0.1)]">
@@ -32,7 +38,7 @@ export default function TopAppBar({ title, showBack, onBack }: TopAppBarProps) {
             <img
               alt="Avatar"
               className="w-full h-full object-cover"
-              src="https://api.dicebear.com/9.x/thumbs/svg?seed=Amanah&backgroundColor=ffd1dc"
+              src={avatarUrl}
             />
           </div>
           <h1 className="font-extrabold text-lg text-primary tracking-tight">

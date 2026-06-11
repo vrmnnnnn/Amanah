@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { useFamily } from "@/lib/family-context";
+import { useFamily, getMemberDisplayName } from "@/lib/family-context";
 import { useCategories } from "@/lib/categories";
 import { toast } from "sonner";
 import TopAppBar from "@/components/TopAppBar";
@@ -83,14 +83,14 @@ export default function Riwayat() {
     }
     const rows = filtered.map((tx) => {
       const date = new Date(tx.created_at).toLocaleDateString("id-ID");
-      const memberRole = members.find((m) => m.id === tx.member_id)?.role || "Semua";
+      const memberName = members.find((m) => m.id === tx.member_id)?.name || members.find((m) => m.id === tx.member_id)?.role || "Semua";
       return [
         date,
         tx.type === "masuk" ? "Masuk" : "Keluar",
         tx.amount,
         getLabel(tx.category),
         tx.note || "",
-        memberRole,
+        memberName,
       ];
     });
     const header = ["Tanggal", "Tipe", "Jumlah", "Kategori", "Catatan", "Anggota"];
@@ -134,7 +134,7 @@ export default function Riwayat() {
         const s = search.toLowerCase();
         const cat = getLabel(tx.category).toLowerCase();
         const note = (tx.note || "").toLowerCase();
-        const role = members.find((m) => m.id === tx.member_id)?.role?.toLowerCase() || "";
+        const role = (members.find((m) => m.id === tx.member_id)?.name || members.find((m) => m.id === tx.member_id)?.role || "").toLowerCase();
         if (!cat.includes(s) && !note.includes(s) && !role.includes(s)) return false;
       }
       if (filterMonth) {
@@ -286,7 +286,7 @@ export default function Riwayat() {
                         note={tx.note}
                         amount={Number(tx.amount)}
                         type={tx.type}
-                        member={members.find((m) => m.id === tx.member_id)?.role}
+                        member={members.find((m) => m.id === tx.member_id)?.name || members.find((m) => m.id === tx.member_id)?.role}
                         time={new Date(tx.created_at).toLocaleTimeString("id-ID", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -404,7 +404,7 @@ export default function Riwayat() {
                 >
                   <option value="">Semua anggota</option>
                   {members.map((m) => (
-                    <option key={m.id} value={m.id}>{m.role}</option>
+                    <option key={m.id} value={m.id}>{getMemberDisplayName(m)}</option>
                   ))}
                 </select>
               </div>
